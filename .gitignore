@@ -16,6 +16,19 @@ build/
 coverage/
 *.tsbuildinfo
 
+# Python environments and generated files
+$apiEnv/
+.venv/
+venv/
+env/
+ENV/
+__pycache__/
+*.py[cod]
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
 # Environment and secrets
 .env
 .env.*
@@ -24,6 +37,8 @@ coverage/
 !.env.example
 !.env.*.example
 serviceAccountKey.json
+*/serviceAccountKey.json
+firebase/serviceAccountKey.json
 *.json.key
 
 # Logs and runtime files

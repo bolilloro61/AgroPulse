@@ -65,6 +65,10 @@
         </button>
       </div>
 
+      <p v-if="errorParcelas" role="alert" class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+        {{ errorParcelas }}
+      </p>
+
       <!-- Lista de Fincas y Parcelas -->
       <div class="space-y-8">
         <div
@@ -92,10 +96,11 @@
 
           <!-- Grid de Parcelas de esta Finca -->
           <div v-if="farm.plots && farm.plots.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            <div
+            <NuxtLink
               v-for="plot in farm.plots"
               :key="plot.id"
-              class="bg-slate-50 rounded-2xl p-5 border border-slate-200/90 hover:border-emerald-300 transition-all space-y-4"
+              :to="`/parcelas/${farm.id}/${plot.id}`"
+              class="block bg-slate-50 rounded-2xl p-5 border border-slate-200/90 hover:border-emerald-300 hover:shadow-md hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 transition-all space-y-4"
             >
               <div class="flex justify-between items-start">
                 <div>
@@ -131,8 +136,8 @@
                   </div>
                 </div>
               </div>
+            </NuxtLink>
             </div>
-          </div>
 
           <div v-else class="text-center py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-300 text-xs text-slate-500">
             No hay parcelas registradas en esta finca aún. Haz clic en "Añadir Parcela" para comenzar.
@@ -211,15 +216,18 @@
           <div>
             <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Tipo de Cultivo</label>
             <select
-              v-model="nuevaParcela.cropType"
+              v-model="nuevaParcela.cropId"
+              required
+              :disabled="cultivos.length === 0"
               class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white"
             >
-              <option value="Tomate Saladette">Tomate Saladette</option>
-              <option value="Maíz Grano">Maíz Grano</option>
-              <option value="Aguacate Hass">Aguacate Hass</option>
-              <option value="Vid / Uva">Vid / Uva</option>
-              <option value="Chile Jalapeño">Chile Jalapeño</option>
+              <option v-for="crop in cultivos" :key="crop.id" :value="crop.id">
+                {{ crop.icon }} {{ crop.name }}
+              </option>
             </select>
+            <p v-if="errorCatalogo" role="status" class="mt-1 text-[11px] text-amber-700">
+              {{ errorCatalogo }} Se utilizará el catálogo local disponible.
+            </p>
           </div>
 
           <div class="flex justify-end gap-3 pt-3">
@@ -246,35 +254,51 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { useAuth } from '~/composables/useAuth'
-import { useNuxtApp } from '#app'
-import { collection, addDoc, getDocs, query, where, doc, updateDoc, arrayUnion, setDoc } from 'firebase/firestore'
+import { useRecommendation, type CropOption, type Farm } from '~/composables/useRecommendation'
 
 definePageMeta({
   middleware: 'auth'
 })
 
 const { user, role, logout, isAuthReady } = useAuth()
-const { $db } = useNuxtApp()
+const { getCrops, getFarms, createFarm: apiCreateFarm, createPlot: apiCreatePlot } = useRecommendation()
 
 const handleLogout = async () => {
   await logout()
   await navigateTo('/login')
 }
 
-const farms = ref([])
+const farms = ref<Farm[]>([])
+const cultivos = ref<CropOption[]>([])
+const errorParcelas = ref('')
+const errorCatalogo = ref('')
 
 const fetchFarms = async () => {
-  if (!user.value || !$db) return
+  if (!user.value) return
   try {
-    const q = query(collection($db, 'farms'), where('userId', '==', user.value.uid))
-    const snapshot = await getDocs(q)
-    farms.value = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+    farms.value = await getFarms()
+    errorParcelas.value = ''
   } catch (err) {
     console.error('Error al cargar fincas:', err)
+    errorParcelas.value = 'No se pudieron cargar las fincas. Verifica tu conexión e inténtalo de nuevo.'
+  }
+}
+
+const fetchCultivos = async () => {
+  try {
+    cultivos.value = await getCrops()
+    if (cultivos.value.length > 0 && !cultivos.value.some(crop => crop.id === nuevaParcela.value.cropId)) {
+      nuevaParcela.value.cropId = cultivos.value[0].id
+    }
+    errorCatalogo.value = ''
+  } catch (err) {
+    console.error('Error al cargar el catálogo de cultivos:', err)
+    errorCatalogo.value = 'No se pudo cargar el catálogo de Firebase.'
   }
 }
 
 onMounted(() => {
+  fetchCultivos()
   if (isAuthReady.value && user.value) {
     fetchFarms()
   } else {
@@ -293,20 +317,19 @@ const nuevaFinca = ref({
 })
 
 const guardarFinca = async () => {
-  if (!nuevaFinca.value.name || !nuevaFinca.value.location || !user.value || !$db) return
+  if (!nuevaFinca.value.name || !nuevaFinca.value.location || !user.value) return
   try {
-    await addDoc(collection($db, 'farms'), {
+    await apiCreateFarm({
       name: nuevaFinca.value.name,
-      location: nuevaFinca.value.location,
-      userId: user.value.uid,
-      plots: [],
-      createdAt: new Date().toISOString()
+      location: nuevaFinca.value.location
     })
     nuevaFinca.value = { name: '', location: '' }
     mostrarModalFinca.value = false
+    errorParcelas.value = ''
     await fetchFarms()
   } catch (err) {
     console.error('Error al guardar finca:', err)
+    errorParcelas.value = 'No se pudo guardar la finca. Inténtalo de nuevo.'
   }
 }
 
@@ -314,7 +337,7 @@ const mostrarModalParcela = ref(false)
 const fincaSeleccionadaId = ref('')
 const nuevaParcela = ref({
   name: '',
-  cropType: 'Tomate Saladette'
+  cropId: 'tomate-saladette'
 })
 
 const abrirModalParcela = (farmId: string) => {
@@ -323,49 +346,25 @@ const abrirModalParcela = (farmId: string) => {
 }
 
 const guardarParcela = async () => {
-  if (!nuevaParcela.value.name || !fincaSeleccionadaId.value || !$db) {
-    console.warn('Faltan datos:', { name: nuevaParcela.value.name, fincaId: fincaSeleccionadaId.value, db: !!$db })
+  if (!nuevaParcela.value.name || !nuevaParcela.value.cropId || !fincaSeleccionadaId.value) {
+    console.warn('Faltan datos:', { name: nuevaParcela.value.name, fincaId: fincaSeleccionadaId.value })
     return
   }
   try {
-    const farmRef = doc($db, 'farms', fincaSeleccionadaId.value)
-    const newPlot = {
-      id: 'p_' + Date.now(),
+    await apiCreatePlot(fincaSeleccionadaId.value, {
       name: nuevaParcela.value.name,
-      cropType: nuevaParcela.value.cropType,
-      createdAt: new Date().toISOString()
-    }
-    await updateDoc(farmRef, {
-      plots: arrayUnion(newPlot)
+      cropId: nuevaParcela.value.cropId
     })
     nuevaParcela.value = {
       name: '',
-      cropType: 'Tomate Saladette'
+      cropId: cultivos.value[0]?.id || ''
     }
     mostrarModalParcela.value = false
+    errorParcelas.value = ''
     await fetchFarms()
-  } catch (err: any) {
+  } catch (err) {
     console.error('Error al guardar parcela:', err)
-    // Si el documento no existe o no tiene campo plots, crearlo
-    if (err.code === 'not-found' || err.message?.includes('No document to update')) {
-      try {
-        const farmRef = doc($db, 'farms', fincaSeleccionadaId.value)
-        const newPlot = {
-          id: 'p_' + Date.now(),
-          name: nuevaParcela.value.name,
-          cropType: nuevaParcela.value.cropType,
-          createdAt: new Date().toISOString()
-        }
-        await setDoc(farmRef, {
-          plots: [newPlot]
-        }, { merge: true })
-        nuevaParcela.value = { name: '', cropType: 'Tomate Saladette' }
-        mostrarModalParcela.value = false
-        await fetchFarms()
-      } catch (err2) {
-        console.error('Error al crear/actualizar finca:', err2)
-      }
-    }
+    errorParcelas.value = 'No se pudo guardar la parcela. Verifica que la finca exista e inténtalo de nuevo.'
   }
 }
 </script>
