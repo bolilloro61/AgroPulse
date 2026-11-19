@@ -23,6 +23,8 @@ coverage/
 *.env.*
 !.env.example
 !.env.*.example
+serviceAccountKey.json
+*.json.key
 
 # Logs and runtime files
 logs/

@@ -23,25 +23,61 @@
               v-for="nav in navItems"
               :key="nav.id"
               @click="scrollToSection(nav.id)"
-              class="px-3.5 py-1.5 rounded-lg text-sm font-medium text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 transition-all flex items-center gap-1.5"
+              class="px-3.5 py-1.5 rounded-lg text-sm font-medium text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 transition-all flex items-center gap-1.5 cursor-pointer"
             >
               <span>{{ nav.icon }}</span>
               <span>{{ nav.label }}</span>
             </button>
+
+            <!-- Sección de parcelas en el header para usuarios autenticados -->
+            <button
+              v-if="user"
+              @click="abrirModalParcelas"
+              class="px-3.5 py-1.5 rounded-lg text-sm font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <span>🌱</span>
+              <span>Parcelas</span>
+            </button>
           </nav>
 
           <div class="flex items-center space-x-2 sm:space-x-3">
-            <button
-              class="px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold text-slate-700 hover:text-emerald-700 hover:bg-slate-100 border border-slate-200 transition-all"
-            >
-              Iniciar Sesión
-            </button>
+            <template v-if="!user">
+              <button
+                @click="abrirAuthModal('login')"
+                class="px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold text-slate-700 hover:text-emerald-700 hover:bg-slate-100 border border-slate-200 transition-all cursor-pointer"
+              >
+                Iniciar Sesión
+              </button>
 
-            <button
-              class="px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm shadow-emerald-600/30 transition-all"
-            >
-              Registrarse
-            </button>
+              <button
+                @click="abrirAuthModal('registro')"
+                class="px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm shadow-emerald-600/30 transition-all cursor-pointer"
+              >
+                Registrarse
+              </button>
+            </template>
+
+            <template v-else>
+              <div class="hidden sm:flex items-center gap-2 px-3 py-1 bg-emerald-50 border border-emerald-200 rounded-xl">
+                <span class="text-xs text-emerald-800 font-bold uppercase tracking-wider">{{ role || 'Usuario' }}</span>
+                <span class="text-xs text-slate-500">({{ user.email?.split('@')[0] }})</span>
+              </div>
+
+              <button
+                @click="abrirModalParcelas"
+                class="px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm shadow-emerald-600/30 transition-all flex items-center gap-1 cursor-pointer"
+              >
+                <span>🌱</span>
+                <span>Mis Parcelas</span>
+              </button>
+
+              <button
+                @click="logout"
+                class="px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold text-slate-700 hover:text-red-600 hover:bg-red-50 border border-slate-200 transition-all cursor-pointer"
+              >
+                Cerrar Sesión
+              </button>
+            </template>
           </div>
         </div>
       </div>
@@ -51,9 +87,16 @@
           v-for="nav in navItems"
           :key="nav.id"
           @click="scrollToSection(nav.id)"
-          class="px-2.5 py-1 text-xs whitespace-nowrap rounded-md font-medium bg-white text-slate-600 border border-slate-200 hover:bg-emerald-50 hover:text-emerald-700 transition-colors"
+          class="px-2.5 py-1 text-xs whitespace-nowrap rounded-md font-medium bg-white text-slate-600 border border-slate-200 hover:bg-emerald-50 hover:text-emerald-700 transition-colors cursor-pointer"
         >
           {{ nav.icon }} {{ nav.label }}
+        </button>
+        <button
+          v-if="user"
+          @click="abrirModalParcelas"
+          class="px-2.5 py-1 text-xs whitespace-nowrap rounded-md font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 cursor-pointer"
+        >
+          🌱 Parcelas
         </button>
       </div>
     </header>
@@ -81,9 +124,22 @@
 
             <div class="pt-2 flex flex-wrap items-center gap-3">
               <button
-                class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm transition-all shadow-lg shadow-emerald-500/30 hover:scale-[1.02]"
+                v-if="!user"
+                @click="abrirAuthModal('registro')"
+                class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm transition-all shadow-lg shadow-emerald-500/30 hover:scale-[1.02] cursor-pointer"
               >
                 <span>Crear Cuenta Gratis</span>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                </svg>
+              </button>
+
+              <button
+                v-else
+                @click="abrirModalParcelas"
+                class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm transition-all shadow-lg shadow-emerald-500/30 hover:scale-[1.02] cursor-pointer"
+              >
+                <span>🌱 Ir al Panel de Parcelas</span>
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
                 </svg>
@@ -414,16 +470,28 @@
           AgroPulse está diseñado para empoderar a productores y técnicos supervisores con datos claros, alertas oportunas y soporte transparente en cada ciclo de riego.
         </p>
         <div class="pt-2 flex flex-wrap justify-center gap-3">
-          <button
-            class="px-6 py-3 rounded-xl bg-white text-emerald-900 font-bold text-sm hover:bg-emerald-50 transition-all shadow-lg shadow-black/10 hover:scale-105"
-          >
-            Registrarse en la Plataforma
-          </button>
-          <button
-            class="px-6 py-3 rounded-xl bg-emerald-900/40 hover:bg-emerald-900/60 border border-white/20 text-white font-semibold text-sm transition-all"
-          >
-            Iniciar Sesión
-          </button>
+          <template v-if="!user">
+            <button
+              @click="abrirAuthModal('registro')"
+              class="px-6 py-3 rounded-xl bg-white text-emerald-900 font-bold text-sm hover:bg-emerald-50 transition-all shadow-lg shadow-black/10 hover:scale-105 cursor-pointer"
+            >
+              Registrarse en la Plataforma
+            </button>
+            <button
+              @click="abrirAuthModal('login')"
+              class="px-6 py-3 rounded-xl bg-emerald-900/40 hover:bg-emerald-900/60 border border-white/20 text-white font-semibold text-sm transition-all cursor-pointer"
+            >
+              Iniciar Sesión
+            </button>
+          </template>
+          <template v-else>
+            <button
+              @click="abrirModalParcelas"
+              class="px-6 py-3 rounded-xl bg-white text-emerald-900 font-bold text-sm hover:bg-emerald-50 transition-all shadow-lg shadow-black/10 hover:scale-105 cursor-pointer"
+            >
+              Gestionar mis Parcelas ({{ role || 'Usuario' }})
+            </button>
+          </template>
         </div>
       </section>
 
@@ -441,11 +509,486 @@
         </div>
       </div>
     </footer>
+
+    <!-- MODAL DE AUTENTICACIÓN (LOGIN Y REGISTRO) -->
+    <div v-if="modalAuth" class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 space-y-5 shadow-2xl border border-emerald-100 relative">
+        <button
+          @click="cerrarAuthModal"
+          class="absolute top-5 right-5 text-slate-400 hover:text-slate-600 text-xl font-bold p-1 cursor-pointer"
+        >
+          ✕
+        </button>
+
+        <div class="text-center space-y-1">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold uppercase tracking-wider mb-1">
+            {{ modalAuthTipo === 'login' ? 'Acceso al Sistema' : 'Registro de Usuario' }}
+          </div>
+          <h3 class="text-2xl font-black text-slate-900">
+            {{ modalAuthTipo === 'login' ? 'Iniciar Sesión' : 'Crear Cuenta' }}
+          </h3>
+          <p class="text-xs text-slate-500">
+            {{ modalAuthTipo === 'login' ? 'Ingresa tus credenciales o selecciona un usuario de prueba' : 'Regístrate en la plataforma AgroPulse con perfil de Gerente' }}
+          </p>
+        </div>
+
+        <!-- Usuarios de Prueba del README (Acceso Rápido para Login) -->
+        <div v-if="modalAuthTipo === 'login'" class="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-extrabold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+              <span>🔑</span> Usuarios de prueba (README)
+            </span>
+            <span class="text-[10px] text-emerald-700 font-bold bg-emerald-100 px-2 py-0.5 rounded-full">Clic para autocompletar</span>
+          </div>
+          <div class="grid grid-cols-2 gap-1.5">
+            <button
+              v-for="u in usuariosPrueba"
+              :key="u.email"
+              type="button"
+              @click="seleccionarUsuarioPrueba(u.email, u.pass)"
+              class="text-left p-2 rounded-xl border border-slate-200 bg-white hover:border-emerald-500 hover:bg-emerald-50/60 transition-all cursor-pointer group"
+            >
+              <div class="flex items-center justify-between">
+                <span class="font-extrabold text-slate-800 group-hover:text-emerald-700 block text-[11px]">{{ u.nombre }}</span>
+                <span class="text-[9px] px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 font-semibold">{{ u.rol }}</span>
+              </div>
+              <span class="text-[10px] text-slate-500 block truncate">{{ u.email }}</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Alerta de Error -->
+        <div v-if="authError" class="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2.5">
+          <span class="text-base">⚠️</span>
+          <span class="flex-1">{{ authError }}</span>
+        </div>
+
+        <form class="space-y-4" @submit.prevent="handleAuthSubmit">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Correo Electrónico</label>
+            <input
+              v-model="authEmail"
+              type="email"
+              required
+              placeholder="tu-correo@agropulse.com"
+              class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+            />
+          </div>
+
+          <!-- Rol Asignado Automáticamente: Gerente (Sin selector, todos con acceso total) -->
+          <div v-if="modalAuthTipo === 'registro'" class="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-xl shrink-0 shadow-sm">
+              🛡️
+            </div>
+            <div>
+              <span class="font-extrabold block text-emerald-950 text-sm">Rol Asignado: Gerente</span>
+              <span class="text-[11px] text-emerald-700 leading-tight block">Todos los usuarios registrados obtienen acceso total y todos los permisos del sistema.</span>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Contraseña</label>
+            <input
+              v-model="authPassword"
+              type="password"
+              required
+              minlength="6"
+              placeholder="••••••••"
+              class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+            />
+          </div>
+
+          <div v-if="modalAuthTipo === 'registro'">
+            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Confirmar Contraseña</label>
+            <input
+              v-model="authConfirmPassword"
+              type="password"
+              required
+              minlength="6"
+              placeholder="••••••••"
+              class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+            />
+          </div>
+
+          <button
+            type="submit"
+            :disabled="authLoading"
+            class="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm transition-all shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
+          >
+            <svg v-if="authLoading" class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span>{{ authLoading ? 'Procesando...' : (modalAuthTipo === 'login' ? 'Iniciar Sesión' : 'Crear Cuenta (Gerente)') }}</span>
+          </button>
+        </form>
+
+        <div class="border-t border-slate-100 pt-3 text-center">
+          <button
+            v-if="modalAuthTipo === 'login'"
+            @click="modalAuthTipo = 'registro'; authError = ''"
+            class="text-xs text-slate-600 hover:text-emerald-700 cursor-pointer"
+          >
+            ¿No tienes cuenta? <span class="font-bold text-emerald-600">Regístrate aquí</span>
+          </button>
+          <button
+            v-else
+            @click="modalAuthTipo = 'login'; authError = ''"
+            class="text-xs text-slate-600 hover:text-emerald-700 cursor-pointer"
+          >
+            ¿Ya tienes cuenta? <span class="font-bold text-emerald-600">Inicia sesión</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL DE PARCELAS Y FINCAS -->
+    <div v-if="modalParcelas" class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 space-y-6 shadow-2xl border border-slate-200 relative">
+        <button
+          @click="cerrarModalParcelas"
+          class="absolute top-5 right-5 text-slate-400 hover:text-slate-600 text-xl font-bold p-1 cursor-pointer"
+        >
+          ✕
+        </button>
+
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-slate-200">
+          <div>
+            <div class="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold uppercase tracking-wider mb-1">
+              🌱 Panel de Fincas y Parcelas
+            </div>
+            <h3 class="text-2xl font-black text-slate-900">
+              Catálogo de Fincas & Umbrales Biológicos
+            </h3>
+            <p class="text-xs text-slate-500">
+              Sesión activa como: <strong class="text-emerald-800 font-bold uppercase">{{ role || 'Usuario' }}</strong> ({{ user?.email }})
+            </p>
+          </div>
+
+          <button
+            @click="mostrarFormFinca = !mostrarFormFinca"
+            class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-600/30 flex items-center gap-1.5 cursor-pointer shrink-0"
+          >
+            <span>➕</span>
+            <span>Nueva Finca</span>
+          </button>
+        </div>
+
+        <!-- Formulario Crear Finca -->
+        <div v-if="mostrarFormFinca" class="bg-emerald-50/60 p-4 rounded-2xl border border-emerald-200 space-y-3">
+          <h4 class="text-xs font-bold text-emerald-900 uppercase">Dar de alta nueva Finca</h4>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input
+              v-model="nuevaFinca.name"
+              placeholder="Nombre de la finca (ej. Finca Santa Lucía)"
+              class="px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none"
+            />
+            <input
+              v-model="nuevaFinca.location"
+              placeholder="Ubicación / Sector"
+              class="px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:outline-none"
+            />
+          </div>
+          <div class="flex justify-end gap-2">
+            <button @click="mostrarFormFinca = false" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-200 cursor-pointer">
+              Cancelar
+            </button>
+            <button @click="guardarFinca" class="px-4 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-500 cursor-pointer">
+              Guardar Finca
+            </button>
+          </div>
+        </div>
+
+        <!-- Lista de Fincas -->
+        <div class="space-y-6">
+          <div
+            v-for="farm in farms"
+            :key="farm.id"
+            class="bg-slate-50 rounded-2xl p-5 border border-slate-200 space-y-4"
+          >
+            <div class="flex justify-between items-center pb-3 border-b border-slate-200">
+              <div>
+                <h4 class="text-lg font-black text-slate-900 flex items-center gap-2">
+                  <span>🏡</span> {{ farm.name }}
+                </h4>
+                <p class="text-xs text-slate-500">📍 {{ farm.location }}</p>
+              </div>
+              <button
+                @click="abrirFormParcela(farm.id)"
+                class="px-3 py-1.5 rounded-lg bg-white border border-emerald-300 text-emerald-800 text-xs font-bold hover:bg-emerald-50 flex items-center gap-1 cursor-pointer"
+              >
+                <span>➕</span> Parcela
+              </button>
+            </div>
+
+            <!-- Formulario Parcela para esta finca -->
+            <div v-if="fincaActivaParcelaId === farm.id" class="bg-white p-4 rounded-xl border border-emerald-300 space-y-3">
+              <h5 class="text-xs font-bold text-slate-800 uppercase">Nueva Parcela en {{ farm.name }}</h5>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <input
+                  v-model="nuevaParcela.name"
+                  placeholder="Nombre de la parcela (ej. Lote 4 Maíz)"
+                  class="px-3 py-2 rounded-lg border border-slate-300 text-xs"
+                />
+                <select v-model="nuevaParcela.cropType" class="px-3 py-2 rounded-lg border border-slate-300 text-xs bg-white">
+                  <option value="Tomate Saladette">Tomate Saladette</option>
+                  <option value="Maíz Grano">Maíz Grano</option>
+                  <option value="Aguacate Hass">Aguacate Hass</option>
+                  <option value="Vid / Uva">Vid / Uva</option>
+                </select>
+              </div>
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                <div>
+                  <label class="block text-[10px] text-slate-500 font-bold">Hum Mín (%)</label>
+                  <input v-model.number="nuevaParcela.thresholds.humidity.min" type="number" class="w-full px-2 py-1.5 border rounded-lg" />
+                </div>
+                <div>
+                  <label class="block text-[10px] text-slate-500 font-bold">Hum Máx (%)</label>
+                  <input v-model.number="nuevaParcela.thresholds.humidity.max" type="number" class="w-full px-2 py-1.5 border rounded-lg" />
+                </div>
+                <div>
+                  <label class="block text-[10px] text-slate-500 font-bold">Temp Mín (°C)</label>
+                  <input v-model.number="nuevaParcela.thresholds.temperature.min" type="number" class="w-full px-2 py-1.5 border rounded-lg" />
+                </div>
+                <div>
+                  <label class="block text-[10px] text-slate-500 font-bold">Temp Máx (°C)</label>
+                  <input v-model.number="nuevaParcela.thresholds.temperature.max" type="number" class="w-full px-2 py-1.5 border rounded-lg" />
+                </div>
+              </div>
+              <div class="flex justify-end gap-2 pt-1">
+                <button @click="fincaActivaParcelaId = null" class="px-3 py-1 rounded-lg text-xs font-semibold text-slate-500 hover:bg-slate-100 cursor-pointer">
+                  Cancelar
+                </button>
+                <button @click="guardarParcela" class="px-3 py-1 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-500 cursor-pointer">
+                  Guardar
+                </button>
+              </div>
+            </div>
+
+            <!-- Parcelas -->
+            <div v-if="farm.plots && farm.plots.length > 0" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div
+                v-for="plot in farm.plots"
+                :key="plot.id"
+                class="bg-white p-3.5 rounded-xl border border-slate-200 space-y-2"
+              >
+                <div class="flex justify-between items-start">
+                  <h5 class="text-sm font-bold text-slate-900">{{ plot.name }}</h5>
+                  <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                    {{ plot.cropType }}
+                  </span>
+                </div>
+                <div class="text-[11px] text-slate-600 bg-slate-50 p-2 rounded-lg space-y-1 font-mono">
+                  <div class="flex justify-between">
+                    <span>💧 Humedad:</span>
+                    <span class="font-bold text-emerald-700">{{ plot.thresholds.humidity.min }}% - {{ plot.thresholds.humidity.max }}%</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span>🌡️ Temp:</span>
+                    <span class="font-bold text-amber-700">{{ plot.thresholds.temperature.min }}°C - {{ plot.thresholds.temperature.max }}°C</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-else class="text-xs text-slate-400 italic py-2 text-center bg-white rounded-xl border border-dashed border-slate-200">
+              Sin parcelas registradas aún.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useAuth } from '~/composables/useAuth'
+
+const { user, role, login, register, logout } = useAuth()
+
+const modalAuth = ref(false)
+const modalAuthTipo = ref<'login' | 'registro'>('login')
+const authEmail = ref('')
+const authPassword = ref('')
+const authConfirmPassword = ref('')
+const authLoading = ref(false)
+const authError = ref('')
+
+// Usuarios de prueba del README para acceso rápido
+const usuariosPrueba = [
+  { nombre: 'Gerente', rol: 'Gerente', email: 'gerente@agropulse.com', pass: 'password123' },
+  { nombre: 'Admin', rol: 'Gerente', email: 'admin@agropulse.com', pass: 'password123' },
+  { nombre: 'Productor', rol: 'Gerente', email: 'productor@agropulse.com', pass: 'password123' },
+  { nombre: 'Técnico', rol: 'Gerente', email: 'tecnico@agropulse.com', pass: 'password123' }
+]
+
+const seleccionarUsuarioPrueba = (email: string, pass: string) => {
+  authEmail.value = email
+  authPassword.value = pass
+  authError.value = ''
+}
+
+const abrirAuthModal = (tipo: 'login' | 'registro') => {
+  modalAuthTipo.value = tipo
+  authError.value = ''
+  authEmail.value = ''
+  authPassword.value = ''
+  authConfirmPassword.value = ''
+  modalAuth.value = true
+}
+
+const cerrarAuthModal = () => {
+  modalAuth.value = false
+  authError.value = ''
+}
+
+const handleAuthSubmit = async () => {
+  authError.value = ''
+
+  if (modalAuthTipo.value === 'registro') {
+    if (authPassword.value !== authConfirmPassword.value) {
+      authError.value = 'Las contraseñas no coinciden.'
+      return
+    }
+    if (authPassword.value.length < 6) {
+      authError.value = 'La contraseña debe tener al menos 6 caracteres.'
+      return
+    }
+  }
+
+  authLoading.value = true
+
+  try {
+    if (modalAuthTipo.value === 'login') {
+      await login(authEmail.value, authPassword.value)
+    } else {
+      // Registro automático como Gerente con todos los permisos
+      await register(authEmail.value, authPassword.value, 'Gerente')
+    }
+    cerrarAuthModal()
+  } catch (err: any) {
+    console.error('Error de autenticación:', err)
+    if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
+      authError.value = 'Credenciales inválidas. Verifica tu correo y contraseña.'
+    } else if (err.code === 'auth/email-already-in-use') {
+      authError.value = 'Este correo electrónico ya está registrado.'
+    } else if (err.code === 'auth/weak-password') {
+      authError.value = 'La contraseña debe tener al menos 6 caracteres.'
+    } else if (err.code === 'auth/invalid-email') {
+      authError.value = 'El formato del correo es inválido.'
+    } else {
+      authError.value = err.message || 'Ocurrió un error. Intenta nuevamente.'
+    }
+  } finally {
+    authLoading.value = false
+  }
+}
+
+// Modal y Gestión de Parcelas y Fincas
+const modalParcelas = ref(false)
+const mostrarFormFinca = ref(false)
+const fincaActivaParcelaId = ref<string | null>(null)
+
+const nuevaFinca = ref({ name: '', location: '' })
+const nuevaParcela = ref({
+  name: '',
+  cropType: 'Tomate Saladette',
+  thresholds: {
+    humidity: { min: 60, max: 80 },
+    temperature: { min: 18, max: 27 }
+  }
+})
+
+const farms = ref([
+  {
+    id: 'f1',
+    name: 'Finca Los Olivos',
+    location: 'Valle Central, Sector A',
+    plots: [
+      {
+        id: 'p1',
+        name: 'Lote Tomates Norte',
+        cropType: 'Tomate Saladette',
+        thresholds: {
+          humidity: { min: 60, max: 80 },
+          temperature: { min: 18, max: 27 }
+        }
+      },
+      {
+        id: 'p2',
+        name: 'Lote Maíz Sur',
+        cropType: 'Maíz Grano',
+        thresholds: {
+          humidity: { min: 50, max: 70 },
+          temperature: { min: 20, max: 30 }
+        }
+      }
+    ]
+  },
+  {
+    id: 'f2',
+    name: 'Finca El Nogal',
+    location: 'Sierra Norte, Km 45',
+    plots: [
+      {
+        id: 'p3',
+        name: 'Parcela Aguacates',
+        cropType: 'Aguacate Hass',
+        thresholds: {
+          humidity: { min: 55, max: 75 },
+          temperature: { min: 15, max: 26 }
+        }
+      }
+    ]
+  }
+])
+
+const abrirModalParcelas = () => {
+  modalParcelas.value = true
+}
+
+const cerrarModalParcelas = () => {
+  modalParcelas.value = false
+}
+
+const guardarFinca = () => {
+  if (!nuevaFinca.value.name || !nuevaFinca.value.location) return
+  farms.value.push({
+    id: 'f_' + Date.now(),
+    name: nuevaFinca.value.name,
+    location: nuevaFinca.value.location,
+    plots: []
+  })
+  nuevaFinca.value = { name: '', location: '' }
+  mostrarFormFinca.value = false
+}
+
+const abrirFormParcela = (farmId: string) => {
+  fincaActivaParcelaId.value = farmId
+}
+
+const guardarParcela = () => {
+  const farm = farms.value.find(f => f.id === fincaActivaParcelaId.value)
+  if (!farm || !nuevaParcela.value.name) return
+  farm.plots.push({
+    id: 'p_' + Date.now(),
+    name: nuevaParcela.value.name,
+    cropType: nuevaParcela.value.cropType,
+    thresholds: {
+      humidity: { ...nuevaParcela.value.thresholds.humidity },
+      temperature: { ...nuevaParcela.value.thresholds.temperature }
+    }
+  })
+  nuevaParcela.value = {
+    name: '',
+    cropType: 'Tomate Saladette',
+    thresholds: {
+      humidity: { min: 60, max: 80 },
+      temperature: { min: 18, max: 27 }
+    }
+  }
+  fincaActivaParcelaId.value = null
+}
 
 const navItems = [
   { id: 'proposito', label: 'Propósito', icon: '🎯' },
@@ -458,18 +1001,6 @@ const scrollToSection = (id: string) => {
   if (element) {
     element.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }
-}
-
-const modalAuth = ref(false)
-const modalAuthTipo = ref<'login' | 'registro'>('login')
-
-const abrirAuthModal = (tipo: 'login' | 'registro') => {
-  modalAuthTipo.value = tipo
-  modalAuth.value = true
-}
-
-const cerrarAuthModal = () => {
-  modalAuth.value = false
 }
 
 const pilaresEnfoque = [
