@@ -168,6 +168,17 @@ npm install
 npm run dev
 ```
 
+### Cargar el catálogo inicial de cultivos
+El script carga en Firestore la colección `crops` con los cinco cultivos y sus umbrales ambientales. Coloca una clave de cuenta de servicio con permisos de escritura en `firebase/serviceAccountKey.json` (archivo ignorado por Git), o configura `GOOGLE_APPLICATION_CREDENTIALS` con la ruta de la clave. Desde la raíz del repositorio, en PowerShell:
+
+```powershell
+python -m pip install -r apps/api/requirements.txt
+$env:GOOGLE_APPLICATION_CREDENTIALS = (Resolve-Path .\firebase\serviceAccountKey.json).Path
+python .\scripts\seed_crops.py
+```
+
+No agregues la clave al repositorio ni la compartas; al terminar, elimina la variable de la sesión con `Remove-Item Env:GOOGLE_APPLICATION_CREDENTIALS`.
+
 ---
 
 ## 10. Cuentas de Prueba Ficticias (Entorno de Demostración)
@@ -178,8 +189,3 @@ npm run dev
 | **Gerente** | `admin@agropulse.test` | `admin` | Acceso a parametrización de rangos, atención de alertas y recomendaciones del motor. |
 
 ---
-
-## 11. Enlaces de Despliegue Público (R3)
-
-* **Aplicación Web (Frontend):** *[URL de Vercel/Netlify en R3]*
-* **API Backend (Python):** *[URL de Render/Railway en R3]*

@@ -334,14 +334,18 @@
             <div>
               <label class="block text-xs font-bold text-slate-700 mb-1.5">Cultivo Objetivo:</label>
               <select
-                v-model="simulacion.cultivo"
+                v-model="simulacion.cropId"
+                :disabled="cultivos.length === 0"
                 class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs sm:text-sm text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
               >
-                <option value="Tomate Saladette">Tomate Saladette (Óptimo: 60-80% hum, 18-27°C | Letal ≤ 2°C)</option>
-                <option value="Maíz Grano">Maíz Grano (Óptimo: 50-70% hum, 20-30°C | Letal ≤ 0°C)</option>
-                <option value="Aguacate Hass">Aguacate Hass (Óptimo: 55-75% hum, 15-26°C | Letal ≤ 0°C)</option>
-                <option value="Vid / Uva">Vid / Uva (Óptimo: 40-65% hum, 16-28°C | Letal ≤ -1°C)</option>
+                <option v-for="crop in cultivos" :key="crop.id" :value="crop.id">
+                  {{ crop.name }} (Óptimo: {{ crop.thresholds.humidity.min }}-{{ crop.thresholds.humidity.max }}% hum,
+                  {{ crop.thresholds.temperature.min }}-{{ crop.thresholds.temperature.max }}°C)
+                </option>
               </select>
+              <p v-if="errorCalculadora" role="alert" class="mt-2 text-xs text-red-700">
+                {{ errorCalculadora }}
+              </p>
             </div>
 
             <div>
@@ -426,7 +430,7 @@
             <div class="grid grid-cols-3 gap-2 pt-3 text-[11px] text-emerald-300/80 border-t border-emerald-800/80">
               <div>
                 <span class="text-slate-400 block">Cultivo:</span>
-                <span class="font-medium text-white">{{ simulacion.cultivo }}</span>
+                <span class="font-medium text-white">{{ cultivoSeleccionado?.name || 'Cargando catálogo...' }}</span>
               </div>
               <div>
                 <span class="text-slate-400 block">Humedad / Temp:</span>
@@ -490,10 +494,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useAuth } from '~/composables/useAuth'
+import { useRecommendation, type CropOption, type RecommendationResult } from '~/composables/useRecommendation'
 
 const { user, role, logout } = useAuth()
+const { getCrops, evaluateMeasurement } = useRecommendation()
 
 const navItems = [
   { id: 'proposito', label: 'Propósito', icon: '🎯' },
@@ -559,86 +565,105 @@ const pilaresEnfoque = [
   }
 ]
 
-const rangosCultivo: Record<string, { tempLetal: number; tempMinOpt: number; tempMaxOpt: number; tempMaxCrit: number; humMinOpt: number; humMaxOpt: number }> = {
-  'Tomate Saladette': { tempLetal: 2, tempMinOpt: 18, tempMaxOpt: 27, tempMaxCrit: 32, humMinOpt: 60, humMaxOpt: 80 },
-  'Maíz Grano': { tempLetal: 0, tempMinOpt: 20, tempMaxOpt: 30, tempMaxCrit: 35, humMinOpt: 50, humMaxOpt: 70 },
-  'Aguacate Hass': { tempLetal: 0, tempMinOpt: 15, tempMaxOpt: 26, tempMaxCrit: 32, humMinOpt: 55, humMaxOpt: 75 },
-  'Vid / Uva': { tempLetal: -1, tempMinOpt: 16, tempMaxOpt: 28, tempMaxCrit: 35, humMinOpt: 40, humMaxOpt: 65 }
-}
-
 const simulacion = ref({
-  cultivo: 'Tomate Saladette',
+  cropId: 'tomate-saladette',
   humedad: 32,
   temperatura: 31,
   tendencia: 'caida_brusca'
 })
 
+const cultivos = ref<CropOption[]>([])
+const errorCalculadora = ref('')
+const recomendacion = ref<RecommendationResult | null>(null)
+const catalogoListo = ref(false)
+
+const simulacionSituaciones: Record<string, string> = {
+  caida_brusca: 'Caída brusca de humedad (-15%)',
+  alza_temperatura: 'Alza térmica pronunciada (+8°C)',
+  estable: 'Condición estable'
+}
+
+const simulacionBadgeColors: Record<RecommendationResult['tipo'], string> = {
+  helada: 'bg-indigo-600/30 text-indigo-200 border border-indigo-400/50',
+  advertencia: 'bg-amber-500/20 text-amber-300 border border-amber-500/30',
+  critico: 'bg-red-500/20 text-red-300 border border-red-500/30',
+  precaucion: 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30',
+  optimo: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+}
+
+const cultivoSeleccionado = computed(() =>
+  cultivos.value.find(crop => crop.id === simulacion.value.cropId)
+)
+
 const simulacionResultado = computed(() => {
-  const h = simulacion.value.humedad
-  const t = simulacion.value.temperatura
-  const c = simulacion.value.cultivo
-  const tend = simulacion.value.tendencia
-  const cfg = rangosCultivo[c] || rangosCultivo['Tomate Saladette']
-
-  if (t <= cfg.tempLetal) {
+  if (!recomendacion.value) {
     return {
-      nivel: 'Emergencia por Helada',
-      badgeColor: 'bg-indigo-600/30 text-indigo-200 border border-indigo-400/50',
-      accion: 'Activar de urgencia sistemas antiheladas (aspersión térmica, cubiertas o calefactores) e inspeccionar tejidos.',
-      explicacion: `DISPARADOR: Temperatura registrada (${t}°C) está en o por debajo del umbral letal (${cfg.tempLetal}°C) para ${c}. El cultivo no sobrevive a 0°C; sufre congelamiento celular y colapso irreversible de tejidos sin mitigación activa.`
-    }
-  }
-
-  if (t < cfg.tempMinOpt) {
-    return {
-      nivel: 'Alerta por Estrés de Frío',
-      badgeColor: 'bg-sky-500/20 text-sky-300 border border-sky-500/30',
-      accion: 'Monitorear descenso térmico nocturno y evitar riegos fríos que reduzcan la temperatura de la raíz.',
-      explicacion: `DISPARADOR: Temperatura registrada (${t}°C) por debajo del mínimo vegetativo (${cfg.tempMinOpt}°C) para ${c}. Provoca parálisis fotosintética y detención del cuajado.`
-    }
-  }
-
-  if (t >= cfg.tempMaxCrit || tend === 'alza_temperatura') {
-    return {
-      nivel: 'Alerta por Golpe de Calor',
-      badgeColor: 'bg-amber-500/20 text-amber-300 border border-amber-500/30',
-      accion: 'Programar micropulverización o riego de mitigación térmica en horario vespertino para disipar calor.',
-      explicacion: `DISPARADOR: Temperatura registrada (${t}°C) supera el umbral crítico (${cfg.tempMaxCrit}°C) para ${c}. Riesgo de quemaduras foliares y esterilidad de floración.`
-    }
-  }
-
-  if (h < cfg.humMinOpt - 15 || tend === 'caida_brusca') {
-    return {
-      nivel: 'Crítico por Estrés Hídrico',
-      badgeColor: 'bg-red-500/20 text-red-300 border border-red-500/30',
-      accion: 'Activar ciclo de riego por goteo inmediato (45 min) e inspeccionar sensor de humedad en parcela.',
-      explicacion: `DISPARADOR: Humedad registrada (${h}%) se encuentra severamente por debajo del rango óptimo (${cfg.humMinOpt}% - ${cfg.humMaxOpt}%) para ${c}, con rápida desecación en el bulbo radicular.`
-    }
-  }
-
-  if (h < cfg.humMinOpt) {
-    return {
-      nivel: 'Precaución de Riego',
-      badgeColor: 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30',
-      accion: 'Programar próximo turno de riego para reponer humedad en el bulbo radicular antes de entrar en déficit.',
-      explicacion: `DISPARADOR: Humedad del suelo (${h}%) está por debajo del rango óptimo recomendado (${cfg.humMinOpt}% - ${cfg.humMaxOpt}%) para ${c}.`
-    }
-  }
-
-  if (h > cfg.humMaxOpt) {
-    return {
-      nivel: 'Precaución por Sobresaturación',
-      badgeColor: 'bg-blue-500/20 text-blue-300 border border-blue-500/30',
-      accion: 'Suspender ciclos de riego programados y verificar drenaje para prevenir asfixia radicular y hongos.',
-      explicacion: `DISPARADOR: Humedad del suelo (${h}%) supera el límite superior óptimo (${cfg.humMaxOpt}%) para ${c}. Riesgo de asfixia radicular y patógenos fúngicos.`
+      nivel: catalogoListo.value ? 'Consultando el motor...' : 'Cargando catálogo...',
+      tipo: 'optimo' as const,
+      badgeColor: simulacionBadgeColors.optimo,
+      accion: 'La recomendación se calculará en el backend.',
+      explicacion: 'La API de AgroPulse evalúa el cultivo y los parámetros seleccionados.'
     }
   }
 
   return {
-    nivel: 'Condición Óptima',
-    badgeColor: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30',
-    accion: 'Mantener esquema de monitoreo estándar. Parcela en condiciones biológicas ideales.',
-    explicacion: `DISPARADOR: Tanto la humedad (${h}%) como la temperatura (${t}°C) se mantienen dentro de la banda agronómica óptima (${cfg.humMinOpt}% - ${cfg.humMaxOpt}% hum, ${cfg.tempMinOpt}°C - ${cfg.tempMaxOpt}°C) para ${c}.`
+    ...recomendacion.value,
+    badgeColor: simulacionBadgeColors[recomendacion.value.tipo]
   }
+})
+
+let latestRequest = 0
+let recommendationTimer: ReturnType<typeof setTimeout> | undefined
+
+const solicitarRecomendacion = async () => {
+  if (!simulacion.value.cropId) return
+  const requestId = ++latestRequest
+  try {
+    const result = await evaluateMeasurement(
+      simulacion.value.cropId,
+      Number(simulacion.value.humedad),
+      Number(simulacion.value.temperatura),
+      simulacionSituaciones[simulacion.value.tendencia] || simulacionSituaciones.estable
+    )
+    if (requestId === latestRequest) {
+      recomendacion.value = result
+      errorCalculadora.value = ''
+    }
+  } catch (error) {
+    console.error('Error al solicitar recomendación al backend:', error)
+    if (requestId === latestRequest) {
+      recomendacion.value = null
+      errorCalculadora.value = 'No se pudo consultar la API. Comprueba que el backend esté encendido.'
+    }
+  }
+}
+
+watch(simulacion, () => {
+  if (!catalogoListo.value) return
+  if (recommendationTimer) clearTimeout(recommendationTimer)
+  recommendationTimer = setTimeout(() => {
+    void solicitarRecomendacion()
+  }, 250)
+}, { deep: true })
+
+onMounted(async () => {
+  try {
+    cultivos.value = await getCrops()
+    if (!cultivos.value.some(crop => crop.id === simulacion.value.cropId)) {
+      simulacion.value.cropId = cultivos.value[0]?.id || ''
+    }
+    catalogoListo.value = true
+    if (simulacion.value.cropId) await solicitarRecomendacion()
+    if (cultivos.value.length === 0) {
+      errorCalculadora.value = 'El catálogo de cultivos está vacío en Firebase.'
+    }
+  } catch (error) {
+    console.error('Error al cargar cultivos desde el backend:', error)
+    errorCalculadora.value = 'No se pudo cargar el catálogo. Comprueba que el backend y Firebase estén configurados.'
+  }
+})
+
+onUnmounted(() => {
+  if (recommendationTimer) clearTimeout(recommendationTimer)
 })
 </script>
