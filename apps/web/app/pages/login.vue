@@ -25,31 +25,6 @@
           <div class="flex-1">{{ errorMsg }}</div>
         </div>
 
-        <!-- Usuarios de Prueba del README (Acceso Rápido) -->
-        <div class="mb-5 p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-2.5">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-              <span>🔑</span> Usuarios de prueba (README)
-            </span>
-            <span class="text-[10px] text-emerald-700 font-bold bg-emerald-100 px-2 py-0.5 rounded-full">Clic para autocompletar</span>
-          </div>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <button
-              v-for="u in usuariosPrueba"
-              :key="u.email"
-              type="button"
-              @click="seleccionarUsuarioPrueba(u.email, u.pass)"
-              class="text-left p-2.5 rounded-xl border border-slate-200 bg-white hover:border-emerald-500 hover:bg-emerald-50/60 transition-all cursor-pointer group"
-            >
-              <div class="flex items-center justify-between">
-                <span class="font-extrabold text-slate-900 group-hover:text-emerald-700 block text-xs">{{ u.nombre }}</span>
-                <span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 font-bold">{{ u.rol }}</span>
-              </div>
-              <span class="text-[11px] text-slate-500 block truncate mt-0.5">{{ u.email }}</span>
-            </button>
-          </div>
-        </div>
-
         <form class="space-y-5" @submit.prevent="handleLogin">
           <div>
             <label for="email" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
@@ -63,7 +38,7 @@
                 type="email"
                 autocomplete="email"
                 required
-                placeholder="ejemplo@agropulse.com"
+                placeholder="productor@agropulse.test"
                 class="w-full px-4 py-3 rounded-xl border border-slate-300 bg-slate-50 text-slate-900 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
               />
             </div>
@@ -91,7 +66,7 @@
             <button
               type="submit"
               :disabled="loading"
-              class="w-full flex justify-center items-center gap-2 py-3.5 px-4 rounded-xl shadow-lg shadow-emerald-600/30 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+              class="w-full flex justify-center items-center gap-2 py-3.5 px-4 rounded-xl shadow-lg shadow-emerald-600/30 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed transition-all cursor-pointer"
             >
               <svg v-if="loading" class="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -128,20 +103,6 @@ const loading = ref(false)
 const errorMsg = ref('')
 
 const { login } = useAuth()
-
-// Usuarios de prueba del README para acceso rápido
-const usuariosPrueba = [
-  { nombre: 'Gerente', rol: 'Gerente', email: 'gerente@agropulse.com', pass: 'password123' },
-  { nombre: 'Admin', rol: 'Gerente', email: 'admin@agropulse.com', pass: 'password123' },
-  { nombre: 'Productor', rol: 'Gerente', email: 'productor@agropulse.com', pass: 'password123' },
-  { nombre: 'Técnico', rol: 'Gerente', email: 'tecnico@agropulse.com', pass: 'password123' }
-]
-
-const seleccionarUsuarioPrueba = (correo: string, contrasena: string) => {
-  email.value = correo
-  password.value = contrasena
-  errorMsg.value = ''
-}
 
 const handleLogin = async () => {
   errorMsg.value = ''

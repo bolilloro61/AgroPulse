@@ -1,28 +1,75 @@
-# 🌱 AgroPulse - Frontend Web (Nuxt 4)
+# Nuxt Minimal Starter
 
-**Autor**: TZAPHQUIEL RODRIGUEZ JARALILLO  
-**Proyecto**: AgroPulse Web App  
+Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
 
----
+## Setup
 
-## 👥 Usuarios de Prueba para Inicio de Sesión
-
-Todos los usuarios cuentan con el rol **Gerente** con acceso total y todos los permisos del sistema:
-
-| Perfil | Correo Electrónico | Contraseña | Rol | Permisos |
-| :--- | :--- | :--- | :--- | :--- |
-| **Gerente** | `gerente@agropulse.com` | `password123` | **Gerente** | Todos (`all`) |
-| **Admin** | `admin@agropulse.com` | `password123` | **Gerente** | Todos (`all`) |
-| **Productor** | `productor@agropulse.com` | `password123` | **Gerente** | Todos (`all`) |
-| **Técnico** | `tecnico@agropulse.com` | `password123` | **Gerente** | Todos (`all`) |
-
-> 💡 **Autocompletado Rápido**: En el modal y pantalla de inicio de sesión puedes dar clic en cualquiera de las tarjetas de usuario de prueba para rellenar los campos al instante.
-
----
-
-## Desarrollo
+Make sure to install dependencies:
 
 ```bash
-# Iniciar servidor de desarrollo en http://localhost:3000
-npm run dev
+# npm
+npm install
+
+# pnpm
+pnpm install
+
+# yarn
+yarn install
+
+# bun
+bun install
 ```
+
+## Development Server
+
+Start the development server on `http://localhost:3000`:
+
+```bash
+# npm
+npm run dev
+
+# pnpm
+pnpm dev
+
+# yarn
+yarn dev
+
+# bun
+bun run dev
+```
+
+## Production
+
+Build the application for production:
+
+```bash
+# npm
+npm run build
+
+# pnpm
+pnpm build
+
+# yarn
+yarn build
+
+# bun
+bun run build
+```
+
+Locally preview production build:
+
+```bash
+# npm
+npm run preview
+
+# pnpm
+pnpm preview
+
+# yarn
+yarn preview
+
+# bun
+bun run preview
+```
+
+Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
