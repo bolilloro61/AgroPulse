@@ -27,6 +27,16 @@
               <span>{{ nav.icon }}</span>
               <span>{{ nav.label }}</span>
             </button>
+
+            <!-- Sección de parcelas en el header para usuarios autenticados -->
+            <NuxtLink
+              v-if="user"
+              to="/parcelas"
+              class="px-3.5 py-1.5 rounded-lg text-sm font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <span>🌱</span>
+              <span>Parcelas</span>
+            </NuxtLink>
           </nav>
 
           <div class="flex items-center space-x-2 sm:space-x-3">
@@ -72,6 +82,13 @@
         >
           {{ nav.icon }} {{ nav.label }}
         </button>
+        <NuxtLink
+          v-if="user"
+          to="/parcelas"
+          class="px-2.5 py-1 text-xs whitespace-nowrap rounded-md font-bold bg-emerald-100 text-emerald-800 border border-emerald-200"
+        >
+          🌱 Parcelas
+        </NuxtLink>
       </div>
     </header>
 
@@ -102,6 +119,17 @@
                 class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm transition-all shadow-lg shadow-emerald-500/30 hover:scale-[1.02]"
               >
                 <span>Crear Cuenta Gratis</span>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                </svg>
+              </NuxtLink>
+
+              <NuxtLink
+                v-else
+                to="/parcelas"
+                class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm transition-all shadow-lg shadow-emerald-500/30 hover:scale-[1.02]"
+              >
+                <span>🌱 Ir al Panel de Parcelas</span>
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
                 </svg>
@@ -421,26 +449,27 @@
           AgroPulse está diseñado para empoderar a productores y técnicos supervisores con datos claros, alertas oportunas y soporte transparente en cada ciclo de riego.
         </p>
         <div class="pt-2 flex flex-wrap justify-center gap-3">
-          <template v-if="!user">
-            <NuxtLink
-              to="/register"
-              class="px-6 py-3 rounded-xl bg-white text-emerald-900 font-bold text-sm hover:bg-emerald-50 transition-all shadow-lg shadow-black/10 hover:scale-105"
-            >
-              Registrarse en la Plataforma
-            </NuxtLink>
-            <NuxtLink
-              to="/login"
-              class="px-6 py-3 rounded-xl bg-emerald-900/40 hover:bg-emerald-900/60 border border-white/20 text-white font-semibold text-sm transition-all"
-            >
-              Iniciar Sesión
-            </NuxtLink>
-          </template>
-          <div
-            v-else
-            class="px-6 py-3 rounded-xl bg-white/10 border border-white/20 text-white font-semibold text-sm backdrop-blur"
+          <NuxtLink
+            v-if="!user"
+            to="/register"
+            class="px-6 py-3 rounded-xl bg-white text-emerald-900 font-bold text-sm hover:bg-emerald-50 transition-all shadow-lg shadow-black/10 hover:scale-105"
           >
-            Sesión activa como {{ user.email }} ({{ role || 'Usuario' }})
-          </div>
+            Registrarse en la Plataforma
+          </NuxtLink>
+          <NuxtLink
+            v-if="!user"
+            to="/login"
+            class="px-6 py-3 rounded-xl bg-emerald-900/40 hover:bg-emerald-900/60 border border-white/20 text-white font-semibold text-sm transition-all"
+          >
+            Iniciar Sesión
+          </NuxtLink>
+          <NuxtLink
+            v-else
+            to="/parcelas"
+            class="px-6 py-3 rounded-xl bg-white text-emerald-900 font-bold text-sm hover:bg-emerald-50 transition-all shadow-lg shadow-black/10 hover:scale-105"
+          >
+            Ver mis Parcelas ({{ role }})
+          </NuxtLink>
         </div>
       </section>
     </main>

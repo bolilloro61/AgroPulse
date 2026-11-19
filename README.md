@@ -174,7 +174,7 @@ npm run dev
 
 | Rol | Correo Electrónico | Contraseña | Descripción |
 | :--- | :--- | :--- | :--- |
-| **Gerentete** | `productor@agropulse.test` | `Productor123!` | Acceso a registro manual de mediciones, vista de parcelas y recepción de alertas. |
+| **Gerente** | `productor@agropulse.test` | `Productor123!` | Acceso a registro manual de mediciones, vista de parcelas y recepción de alertas. |
 | **Gerente** | `admin@agropulse.test` | `admin` | Acceso a parametrización de rangos, atención de alertas y recomendaciones del motor. |
 
 ---
