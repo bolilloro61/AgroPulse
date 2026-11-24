@@ -41,12 +41,22 @@ export interface Plot {
   createdAt: string
 }
 
+export interface FarmInput {
+  name: string
+  location: string
+}
+
 export interface Farm {
   id: string
   name: string
   location: string
   plots: Plot[]
   createdAt: string
+}
+
+export interface UpdatePlot {
+  name: string
+  cropId: string
 }
 
 export interface Measurement {
@@ -61,7 +71,7 @@ export interface Measurement {
 }
 
 interface ApiRequestOptions {
-  method?: 'GET' | 'POST' | 'DELETE'
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
   body?: Record<string, unknown>
   authenticated?: boolean
 }
@@ -134,6 +144,26 @@ export const useRecommendation = () => {
     deleteMeasurement: (measurementId: string) =>
       request<{ deleted: boolean }>(
         `/measurements/${encodeURIComponent(measurementId)}`,
+        { method: 'DELETE', authenticated: true }
+      ),
+    updatePlot: (farmId: string, plotId: string, plot: UpdatePlot) =>
+      request<{ farm: Farm; plot: Plot }>(
+        `/farms/${encodeURIComponent(farmId)}/plots/${encodeURIComponent(plotId)}`,
+        { method: 'PUT', body: plot, authenticated: true }
+      ),
+    deletePlot: (farmId: string, plotId: string) =>
+      request<{ deleted: boolean }>(
+        `/farms/${encodeURIComponent(farmId)}/plots/${encodeURIComponent(plotId)}`,
+        { method: 'DELETE', authenticated: true }
+      ),
+    updateFarm: (farmId: string, farm: FarmInput) =>
+      request<Farm>(
+        `/farms/${encodeURIComponent(farmId)}`,
+        { method: 'PUT', body: farm, authenticated: true }
+      ),
+    deleteFarm: (farmId: string) =>
+      request<{ deleted: boolean }>(
+        `/farms/${encodeURIComponent(farmId)}`,
         { method: 'DELETE', authenticated: true }
       )
   }
