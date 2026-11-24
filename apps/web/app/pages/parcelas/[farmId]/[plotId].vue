@@ -91,11 +91,11 @@
         </div>
 
         <!-- Banner de Último Estado y Recomendación Activa -->
-        <div v-if="ultimaMedicion" class="rounded-2xl p-5 border" :class="ultimaMedicion.recommendation?.badgeColor || 'border-slate-200 bg-slate-50'">
+        <div v-if="ultimaMedicion" class="rounded-2xl p-5 border" :class="clasesRecomendacion(ultimaMedicion.recommendation).contenedor">
           <div class="flex flex-col md:flex-row justify-between md:items-center gap-4">
             <div class="space-y-1.5">
               <div class="flex items-center gap-2">
-                <span class="text-xs font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full" :class="[ultimaMedicion.recommendation?.badgeBg, ultimaMedicion.recommendation?.badgeText]">
+                <span class="text-xs font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full" :class="clasesRecomendacion(ultimaMedicion.recommendation).insignia">
                   {{ ultimaMedicion.recommendation?.nivel }}
                 </span>
                 <span class="text-xs text-slate-500">
@@ -110,15 +110,28 @@
               </p>
             </div>
 
-            <div class="flex items-center gap-3 bg-white/80 p-3 rounded-xl border border-slate-200/60 shrink-0">
-              <div class="text-center px-2">
-                <span class="text-[10px] text-slate-500 block">Humedad</span>
-                <span class="text-base font-black text-emerald-700 font-mono">{{ ultimaMedicion.humidity }}%</span>
+            <div class="flex flex-col gap-3 shrink-0 w-full md:w-64">
+              <div class="flex items-center justify-center gap-3 bg-white/80 p-3 rounded-xl border border-slate-200/60 min-w-44">
+                <div class="text-center px-2">
+                  <span class="text-[10px] text-slate-500 block">Humedad</span>
+                  <span class="text-base font-black text-emerald-700 font-mono">{{ ultimaMedicion.humidity }}%</span>
+                </div>
+                <div class="w-px h-6 bg-slate-200"></div>
+                <div class="text-center px-2">
+                  <span class="text-[10px] text-slate-500 block">Temperatura</span>
+                  <span class="text-base font-black text-amber-700 font-mono">{{ ultimaMedicion.temperature }}°C</span>
+                </div>
               </div>
-              <div class="w-px h-6 bg-slate-200"></div>
-              <div class="text-center px-2">
-                <span class="text-[10px] text-slate-500 block">Temperatura</span>
-                <span class="text-base font-black text-amber-700 font-mono">{{ ultimaMedicion.temperature }}°C</span>
+
+              <div v-if="estadoPromedio" class="p-3 rounded-xl border-2 min-w-56" :class="estadoPromedio.clase">
+                <div class="flex items-center justify-between gap-2 mb-1">
+                  <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">Estado promedio</span>
+                  <span class="px-2 py-0.5 rounded-full text-[11px] font-black" :class="[estadoPromedio.claseEstado, estadoPromedio.claseTexto]">
+                    {{ estadoPromedio.icono }} {{ estadoPromedio.estado }}
+                  </span>
+                </div>
+                <p class="text-xs font-bold mt-0.5">{{ estadoPromedio.tendencia }}</p>
+                <p class="text-[11px] leading-snug mt-1">{{ estadoPromedio.consejo }}</p>
               </div>
             </div>
           </div>
@@ -278,7 +291,7 @@
                 <td class="px-4 py-3 border-r border-slate-200 whitespace-nowrap">
                   <span
                     class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border"
-                    :class="med.recommendation?.badgeColor || 'bg-slate-100 text-slate-700 border-slate-300'"
+                    :class="clasesRecomendacion(med.recommendation).contenedor"
                   >
                     <span>{{ iconoSituacion(med.recommendation?.tipo) }}</span>
                     <span>{{ med.recommendation?.nivel || 'Analizado' }}</span>
@@ -304,6 +317,13 @@
                       class="p-1.5 rounded-lg text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
                     >
                       👁️
+                    </button>
+                    <button
+                      @click="editarMedicion(med)"
+                      title="Editar Medición"
+                      class="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-100 transition-colors"
+                    >
+                      ✏️
                     </button>
                     <button
                       @click="eliminarMedicion(med.id)"
@@ -445,7 +465,7 @@
                 <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                 Diagnóstico y Recomendación en Tiempo Real
               </span>
-              <span class="text-xs font-bold px-2.5 py-0.5 rounded-full" :class="[previewRecomendacion.badgeBg, previewRecomendacion.badgeText]">
+              <span class="text-xs font-bold px-2.5 py-0.5 rounded-full" :class="clasesRecomendacion(previewRecomendacion).insignia">
                 {{ previewRecomendacion.nivel }}
               </span>
             </div>
@@ -476,6 +496,145 @@
             >
               <span v-if="guardandoMedicion" class="animate-spin">⏳</span>
               <span>Guardar medición</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal Editar Medición -->
+    <div v-if="medicionEditando" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+      <div class="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 space-y-5 shadow-2xl border border-slate-200 my-8">
+        <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+          <div>
+            <div class="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">
+              {{ farm?.name }} &bull; {{ plot?.name }}
+            </div>
+            <h3 class="text-xl font-black text-slate-900">Editar Medición del Cultivo</h3>
+          </div>
+          <button @click="medicionEditando = false" class="text-slate-400 hover:text-slate-600 text-xl font-bold">✕</button>
+        </div>
+
+        <form class="space-y-4" @submit.prevent="actualizarMedicion">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <!-- Fecha y Hora -->
+            <div class="sm:col-span-2">
+              <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Fecha y Hora de la Lectura</label>
+              <input
+                type="datetime-local"
+                v-model="medicionAEditar.date"
+                required
+                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+              />
+            </div>
+
+            <!-- Humedad -->
+            <div>
+              <div class="flex justify-between items-center mb-1">
+                <label class="text-xs font-bold text-slate-700 uppercase">Humedad Suelo (%)</label>
+                <span class="text-xs font-mono font-bold text-emerald-700">{{ medicionAEditar.humidity }}%</span>
+              </div>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                v-model.number="medicionAEditar.humidity"
+                required
+                placeholder="65"
+                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none font-mono"
+              />
+              <div class="text-[10px] text-slate-400 mt-1">
+                Óptimo: {{ thresholds.humidity.min }}% - {{ thresholds.humidity.max }}%
+              </div>
+            </div>
+
+            <!-- Temperatura -->
+            <div>
+              <div class="flex justify-between items-center mb-1">
+                <label class="text-xs font-bold text-slate-700 uppercase">Temperatura (°C)</label>
+                <span class="text-xs font-mono font-bold text-amber-700">{{ medicionAEditar.temperature }}°C</span>
+              </div>
+              <input
+                type="number"
+                step="0.5"
+                min="-15"
+                max="60"
+                v-model.number="medicionAEditar.temperature"
+                required
+                placeholder="24"
+                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none font-mono"
+              />
+              <div class="text-[10px] text-slate-400 mt-1">
+                Óptimo: {{ thresholds.temperature.min }}°C - {{ thresholds.temperature.max }}°C
+              </div>
+            </div>
+
+            <!-- Situación del Cultivo -->
+            <div class="sm:col-span-2">
+              <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Situación / Dinámica de la Parcela</label>
+              <select
+                v-model="medicionAEditar.situation"
+                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white"
+              >
+                <option value="Condición estable">Condición estable</option>
+                <option value="Bajo riego activo">Bajo riego activo</option>
+                <option value="Caída brusca de humedad (-15%)">Caída brusca de humedad (-15% en 6h)</option>
+                <option value="Alza térmica pronunciada (+8°C)">Alza térmica pronunciada (+8°C)</option>
+                <option value="Lluvia reciente">Lluvia reciente</option>
+                <option value="Estrés visible en follaje">Estrés visible en follaje</option>
+              </select>
+            </div>
+
+            <!-- Observaciones Adicionales -->
+            <div class="sm:col-span-2">
+              <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Notas / Observaciones del Operador (Opcional)</label>
+              <input
+                type="text"
+                v-model="medicionAEditar.notes"
+                placeholder="Ej. Sensor revisado, sector poniente sin goteras"
+                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <!-- Diagnóstico en Tiempo Real Calculado para este Cultivo -->
+          <div class="bg-emerald-950 text-white rounded-2xl p-4 sm:p-5 border border-emerald-800 space-y-3">
+            <div class="flex items-center justify-between border-b border-emerald-800 pb-2">
+              <span class="text-[11px] font-mono text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                Diagnóstico y Recomendación en Tiempo Real
+              </span>
+              <span class="text-xs font-bold px-2.5 py-0.5 rounded-full" :class="clasesRecomendacion(previewRecomendacion).insignia">
+                {{ previewRecomendacion.nivel }}
+              </span>
+            </div>
+
+            <div>
+              <span class="text-[11px] text-emerald-300 uppercase font-bold block">Tratamiento Sugerido:</span>
+              <p class="text-sm font-bold text-white mt-0.5">{{ previewRecomendacion.accion }}</p>
+            </div>
+
+            <div class="bg-emerald-900/60 p-3 rounded-xl border border-emerald-700/60">
+              <span class="text-[10px] text-emerald-300 font-mono font-bold block">REGLA DISPARADORA (TRANSPARENTE):</span>
+              <p class="text-xs text-emerald-100 font-mono mt-0.5 leading-relaxed">{{ previewRecomendacion.explicacion }}</p>
+            </div>
+          </div>
+
+          <div class="flex justify-end gap-3 pt-2">
+            <button
+              type="button"
+              @click="medicionEditando = false"
+              class="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              :disabled="guardandoActualizacion"
+              class="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-600/30 transition-all flex items-center gap-2 disabled:opacity-50"
+            >
+              <span v-if="guardandoActualizacion" class="animate-spin">⏳</span>
+              <span>Actualizar medición</span>
             </button>
           </div>
         </form>
@@ -518,10 +677,10 @@
           </p>
         </div>
 
-        <div class="rounded-2xl p-4 border space-y-2" :class="medicionSeleccionada.recommendation?.badgeColor || 'bg-slate-50 border-slate-200'">
+        <div class="rounded-2xl p-4 border space-y-2" :class="clasesRecomendacion(medicionSeleccionada.recommendation).contenedor">
           <div class="flex items-center justify-between">
             <span class="text-xs font-bold uppercase tracking-wider">Recomendación Agronómica:</span>
-            <span class="px-2 py-0.5 text-[11px] font-bold rounded" :class="[medicionSeleccionada.recommendation?.badgeBg, medicionSeleccionada.recommendation?.badgeText]">
+            <span class="px-2 py-0.5 text-[11px] font-bold rounded" :class="clasesRecomendacion(medicionSeleccionada.recommendation).insignia">
               {{ medicionSeleccionada.recommendation?.nivel }}
             </span>
           </div>
@@ -571,7 +730,8 @@ const {
   getMeasurements,
   evaluateMeasurement,
   createMeasurement: apiCreateMeasurement,
-  deleteMeasurement: apiDeleteMeasurement
+  deleteMeasurement: apiDeleteMeasurement,
+  updateMeasurement: apiUpdateMeasurement
 } = useRecommendation()
 
 const farm = ref<Farm | null>(null)
@@ -641,14 +801,40 @@ const previewRecomendacion = ref<RecommendationResult>({
 let previewRequestId = 0
 let previewTimer: ReturnType<typeof setTimeout> | undefined
 
+const marcarPreviewDatosInvalidos = () => {
+  previewRecomendacion.value = {
+    nivel: 'Datos por validar',
+    tipo: 'precaucion',
+    badgeColor: 'border-amber-500 bg-amber-50 text-amber-800',
+    badgeBg: 'bg-amber-500',
+    badgeText: 'text-slate-900',
+    accion: 'Ingresa una humedad de 0–100% y una temperatura de -15–60 °C.',
+    explicacion: 'La recomendación se calculará cuando los valores estén dentro de los límites permitidos.'
+  }
+}
+
 const actualizarPreview = async () => {
   if (!plot.value?.cropId) return
   const requestId = ++previewRequestId
+  const humidity = Number(nuevaMedicion.value.humidity)
+  const temperature = Number(nuevaMedicion.value.temperature)
+  if (
+    !Number.isFinite(humidity) ||
+    humidity < 0 ||
+    humidity > 100 ||
+    !Number.isFinite(temperature) ||
+    temperature < -15 ||
+    temperature > 60
+  ) {
+    marcarPreviewDatosInvalidos()
+    return
+  }
+
   try {
     const result = await evaluateMeasurement(
       plot.value.cropId,
-      Number(nuevaMedicion.value.humidity),
-      Number(nuevaMedicion.value.temperature),
+      humidity,
+      temperature,
       nuevaMedicion.value.situation
     )
     if (requestId === previewRequestId) {
@@ -704,6 +890,90 @@ const cargarMediciones = async () => {
 // Última Medición
 const ultimaMedicion = computed(() => {
   return mediciones.value.length > 0 ? mediciones.value[0] : null
+})
+
+const estadoPromedio = computed(() => {
+  if (mediciones.value.length === 0) return null
+
+  const medicionesCronologicas = [...mediciones.value].reverse()
+  const puntajePorTipo: Record<string, number> = {
+    optimo: 100,
+    precaucion: 65,
+    advertencia: 40,
+    critico: 15,
+    helada: 0
+  }
+
+  const puntajes = medicionesCronologicas.map(med =>
+    puntajePorTipo[med.recommendation?.tipo || ''] ?? 50
+  )
+  const promedio = puntajes.reduce((total, puntaje) => total + puntaje, 0) / puntajes.length
+
+  let estado = 'Segura'
+  let clase = 'border-emerald-300 bg-emerald-50 text-emerald-900'
+  let claseEstado = 'bg-emerald-600'
+  let claseTexto = 'text-white'
+  let icono = '🟢'
+  if (promedio < 50) {
+    estado = 'En riesgo'
+    clase = 'border-red-400 bg-red-50 text-red-900'
+    claseEstado = 'bg-red-600'
+    claseTexto = 'text-white'
+    icono = '🔴'
+  } else if (promedio < 80) {
+    estado = 'En alerta'
+    clase = 'border-amber-400 bg-amber-50 text-amber-900'
+    claseEstado = 'bg-amber-500'
+    claseTexto = 'text-slate-950'
+    icono = '🟡'
+  }
+
+  let tendencia = 'Sin cambios suficientes'
+  let consejo = 'Continúa registrando mediciones para identificar una tendencia confiable.'
+
+  if (medicionesCronologicas.length >= 2) {
+    const primero = puntajes[0]
+    const ultimo = puntajes[puntajes.length - 1]
+    const diferencia = ultimo - primero
+
+    if (diferencia >= 10) {
+      tendencia = 'La parcela ha estado mejorando'
+      consejo = 'Mantén el esquema actual y continúa observando los sensores para conservar las condiciones.'
+    } else if (diferencia <= -10) {
+      tendencia = 'La parcela ha estado empeorando'
+      consejo = 'Revisa riego, drenaje y temperatura antes del próximo turno; corrige cualquier salida fuera de los rangos óptimos.'
+    } else {
+      tendencia = 'Las condiciones han permanecido relativamente estables'
+      consejo = 'Mantén el monitoreo y realiza ajustes preventivos solo cuando una medición se salga del rango óptimo.'
+    }
+
+    const cambiosBruscos = medicionesCronologicas.some((med, index) => {
+      if (index === 0) return false
+      const anterior = medicionesCronologicas[index - 1]
+      const cambioHumedad = Math.abs(Number(med.humidity) - Number(anterior.humidity))
+      const cambioTemperatura = Math.abs(Number(med.temperature) - Number(anterior.temperature))
+      const situacion = String(med.situation || '').toLowerCase()
+      return cambioHumedad >= 15 ||
+        cambioTemperatura >= 8 ||
+        situacion.includes('brusca') ||
+        situacion.includes('pronunciada')
+    })
+
+    if (cambiosBruscos) {
+      tendencia = `Cambios bruscos detectados · ${tendencia}`
+      consejo = 'Investiga las variaciones entre lecturas, revisa sensores y protege la zona ante cambios rápidos de riego o temperatura.'
+    }
+  }
+
+  return {
+    estado,
+    tendencia,
+    consejo,
+    clase,
+    claseEstado,
+    claseTexto,
+    icono
+  }
 })
 
 // Filtrado de Mediciones
@@ -843,6 +1113,56 @@ const claseTemperatura = (t: number) => {
   return 'bg-emerald-100 text-emerald-800 border border-emerald-200'
 }
 
+const clasesRecomendacion = (recomendacion?: RecommendationResult) => {
+  const nivel = recomendacion?.nivel.toLowerCase() || ''
+  if (recomendacion?.tipo === 'helada') {
+    return {
+      contenedor: 'border-indigo-500 bg-indigo-50 text-indigo-900',
+      insignia: 'bg-indigo-600 text-white'
+    }
+  }
+  if (recomendacion?.tipo === 'critico') {
+    return {
+      contenedor: 'border-red-500 bg-red-50 text-red-900',
+      insignia: 'bg-red-600 text-white'
+    }
+  }
+  if (recomendacion?.tipo === 'advertencia' && nivel.includes('frío')) {
+    return {
+      contenedor: 'border-sky-500 bg-sky-50 text-sky-900',
+      insignia: 'bg-sky-600 text-white'
+    }
+  }
+  if (recomendacion?.tipo === 'advertencia') {
+    return {
+      contenedor: 'border-amber-500 bg-amber-50 text-amber-900',
+      insignia: 'bg-amber-500 text-slate-950'
+    }
+  }
+  if (recomendacion?.tipo === 'precaucion' && nivel.includes('sobresaturación')) {
+    return {
+      contenedor: 'border-blue-500 bg-blue-50 text-blue-900',
+      insignia: 'bg-blue-600 text-white'
+    }
+  }
+  if (recomendacion?.tipo === 'precaucion') {
+    return {
+      contenedor: 'border-yellow-500 bg-yellow-50 text-yellow-950',
+      insignia: 'bg-yellow-400 text-slate-950'
+    }
+  }
+  if (recomendacion?.tipo === 'optimo') {
+    return {
+      contenedor: 'border-emerald-500 bg-emerald-50 text-emerald-900',
+      insignia: 'bg-emerald-600 text-white'
+    }
+  }
+  return {
+    contenedor: 'border-slate-300 bg-slate-50 text-slate-800',
+    insignia: 'bg-slate-600 text-white'
+  }
+}
+
 const iconoSituacion = (tipo?: string) => {
   if (tipo === 'helada') return '❄️'
   if (tipo === 'advertencia') return '⚠️'
@@ -874,4 +1194,120 @@ onMounted(() => {
 onUnmounted(() => {
   if (previewTimer) clearTimeout(previewTimer)
 })
+
+// Estado para edición de mediciones
+const medicionEditando = ref(false)
+const guardandoActualizacion = ref(false)
+const medicionAEditar = ref<{
+  id: string
+  date: string
+  humidity: number
+  temperature: number
+  situation: string
+  notes: string
+}>({
+  id: '',
+  date: '',
+  humidity: 0,
+  temperature: 0,
+  situation: 'Condición estable',
+  notes: ''
+})
+
+const editarMedicion = (medicion: Measurement) => {
+  medicionEditando.value = true
+  medicionAEditar.value = {
+    id: medicion.id,
+    date: medicion.date,
+    humidity: medicion.humidity,
+    temperature: medicion.temperature,
+    situation: medicion.situation || 'Condición estable',
+    notes: medicion.notes || ''
+  }
+}
+
+watch(
+  () => [
+    medicionEditando.value,
+    medicionAEditar.value.humidity,
+    medicionAEditar.value.temperature,
+    medicionAEditar.value.situation
+  ],
+  () => {
+    if (!medicionEditando.value || !plot.value?.cropId) return
+    if (previewTimer) clearTimeout(previewTimer)
+    previewTimer = setTimeout(async () => {
+      const humidity = Number(medicionAEditar.value.humidity)
+      const temperature = Number(medicionAEditar.value.temperature)
+      if (
+        !Number.isFinite(humidity) ||
+        humidity < 0 ||
+        humidity > 100 ||
+        !Number.isFinite(temperature) ||
+        temperature < -15 ||
+        temperature > 60
+      ) {
+        previewRequestId += 1
+        marcarPreviewDatosInvalidos()
+        return
+      }
+
+      const requestId = ++previewRequestId
+      try {
+        const result = await evaluateMeasurement(
+          plot.value!.cropId,
+          humidity,
+          temperature,
+          medicionAEditar.value.situation
+        )
+        if (requestId === previewRequestId) {
+          previewRecomendacion.value = result
+        }
+      } catch (err) {
+        console.error('Error al calcular la recomendación en el backend:', err)
+      }
+    }, 250)
+  }
+)
+
+const actualizarMedicion = async () => {
+  guardandoActualizacion.value = true
+  mensajeExito.value = ''
+  errorMediciones.value = ''
+  const humidity = Number(medicionAEditar.value.humidity)
+  const temperature = Number(medicionAEditar.value.temperature)
+  if (
+    !Number.isFinite(humidity) ||
+    humidity < 0 ||
+    humidity > 100 ||
+    !Number.isFinite(temperature) ||
+    temperature < -15 ||
+    temperature > 60 ||
+    !medicionAEditar.value.date ||
+    Number.isNaN(new Date(medicionAEditar.value.date).getTime())
+  ) {
+    errorMediciones.value = 'Verifica la fecha, la humedad (0–100%) y la temperatura (-15–60 °C).'
+    guardandoActualizacion.value = false
+    return
+  }
+
+  try {
+    await apiUpdateMeasurement(farmId.value, plotId.value, medicionAEditar.value.id, {
+      date: medicionAEditar.value.date,
+      humidity,
+      temperature,
+      situation: medicionAEditar.value.situation,
+      notes: medicionAEditar.value.notes
+    })
+    mensajeExito.value = 'Medición actualizada correctamente'
+    medicionEditando.value = false
+    await cargarMediciones()
+  } catch (error) {
+    console.error('Error al actualizar medición:', error)
+    errorMediciones.value = 'No se pudo actualizar la medición desde la API.'
+  } finally {
+    guardandoActualizacion.value = false
+  }
+}
+
 </script>

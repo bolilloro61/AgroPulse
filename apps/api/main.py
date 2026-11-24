@@ -51,7 +51,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "DELETE"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["Authorization", "Content-Type"],
 )
 
@@ -457,6 +457,75 @@ def create_measurement(
     measurement_ref = db.collection("measurements").document()
     measurement_ref.set(measurement_data)
     return {"id": measurement_ref.id, **measurement_data}
+
+
+@app.put("/api/farms/{farm_id}/plots/{plot_id}/measurements/{measurement_id}")
+def update_measurement(
+    farm_id: str,
+    plot_id: str,
+    measurement_id: str,
+    measurement: MeasurementInput,
+    user_id: str = Depends(get_current_user_id),
+    db: Any = Depends(get_firestore),
+) -> dict[str, Any]:
+    farm, plot = _get_owned_plot(db, farm_id, plot_id, user_id)
+    measurement_ref = db.collection("measurements").document(measurement_id)
+    snapshot = measurement_ref.get()
+    existing = snapshot.to_dict() or {}
+    if (
+        not snapshot.exists
+        or existing.get("userId") != user_id
+        or existing.get("farmId") != farm_id
+        or existing.get("plotId") != plot_id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No se encontró la medición solicitada.",
+        )
+
+    crop_id = plot.get("cropId")
+    if not isinstance(crop_id, str):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="La parcela no tiene un cultivo asignado. Vuelve a seleccionarlo.",
+        )
+    crop = _get_crop(db, crop_id)
+    try:
+        thresholds = CropThresholds.model_validate(
+            plot.get("thresholds", crop.model_dump(by_alias=True)["thresholds"])
+        )
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Los umbrales de la parcela son inválidos.",
+        ) from exc
+
+    recommendation = evaluate_measurement(
+        crop.name,
+        measurement.humidity,
+        measurement.temperature,
+        measurement.situation,
+        thresholds,
+    )
+    measurement_data = {
+        "userId": user_id,
+        "farmId": farm_id,
+        "plotId": plot_id,
+        "farmName": farm["name"],
+        "plotName": plot["name"],
+        "cropType": crop.name,
+        "date": measurement.date,
+        "humidity": measurement.humidity,
+        "temperature": measurement.temperature,
+        "situation": measurement.situation,
+        "notes": measurement.notes,
+        "recommendation": recommendation.model_dump(by_alias=True),
+        "createdAt": existing.get(
+            "createdAt", datetime.now(timezone.utc).isoformat()
+        ),
+    }
+    measurement_ref.set(measurement_data)
+    return {"id": measurement_id, **measurement_data}
 
 
 @app.delete("/api/measurements/{measurement_id}")
