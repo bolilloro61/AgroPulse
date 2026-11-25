@@ -1,12 +1,14 @@
 import { ref, computed } from 'vue'
 import { useAuth } from '~/composables/useAuth'
 import { useRecommendation, type Farm, type Plot, type RecommendationResult } from '~/composables/useRecommendation'
+import { summarizeMeasurements, type MeasurementSummary } from '~/utils/measurementSummary'
 
 export type AlertWithParcel = {
   farmId: string
   farmName: string
   plot: Plot
   recommendation: RecommendationResult
+  averageStatus: MeasurementSummary
 }
 
 const ALERT_TYPES = ['helada', 'advertencia', 'critico', 'precaucion'] as const
@@ -45,7 +47,8 @@ export const useAlerts = () => {
           const measurements = await getMeasurements(farm.id, plot.id).catch(() => [])
           if (!measurements.length) continue
 
-          const latest = measurements[measurements.length - 1]
+          const latest = measurements[0]
+          const averageStatus = summarizeMeasurements(measurements)
           const result = await evaluateMeasurement(
             plot.cropId,
             latest.humidity,
@@ -53,12 +56,26 @@ export const useAlerts = () => {
             latest.situation
           ).catch(() => null)
 
-          if (result && isAlertType(result.tipo)) {
+          const latestRecommendationIsAlert = result !== null && isAlertType(result.tipo)
+          const averageRisk = averageStatus?.status === 'risk'
+          if (averageStatus && (latestRecommendationIsAlert || averageRisk)) {
+            const recommendation = latestRecommendationIsAlert
+              ? result
+              : {
+                  nivel: 'Riesgo alto según el estado promedio',
+                  tipo: 'critico' as const,
+                  badgeColor: 'border-red-500 bg-red-50 text-red-800',
+                  badgeBg: 'bg-red-600',
+                  badgeText: 'text-white',
+                  accion: averageStatus.consejo,
+                  explicacion: `Promedio de estado: ${Math.round(averageStatus.score)}/100. ${averageStatus.tendencia}.`
+                }
             alertResults.push({
               farmId: farm.id,
               farmName: farm.name,
               plot,
-              recommendation: result
+              recommendation,
+              averageStatus
             })
           }
         }
