@@ -146,6 +146,21 @@ export const useRecommendation = () => {
         `/measurements/${encodeURIComponent(measurementId)}`,
         { method: 'DELETE', authenticated: true }
       ),
+    updateMeasurement: (
+      farmId: string,
+      plotId: string,
+      measurementId: string,
+      measurement: {
+        date: string
+        humidity: number
+        temperature: number
+        situation: string
+        notes: string
+      }
+    ) =>
+      request<Measurement>(
+        `/farms/${encodeURIComponent(farmId)}/plots/${encodeURIComponent(plotId)}/measurements/${encodeURIComponent(measurementId)}`,
+        { method: 'PUT', body: measurement, authenticated: true }
     updatePlot: (farmId: string, plotId: string, plot: UpdatePlot) =>
       request<{ farm: Farm; plot: Plot }>(
         `/farms/${encodeURIComponent(farmId)}/plots/${encodeURIComponent(plotId)}`,
