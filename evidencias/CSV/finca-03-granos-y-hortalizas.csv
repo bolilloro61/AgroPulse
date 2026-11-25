@@ -1,0 +1,5 @@
+name,crop,date,humidity,temperature,situation,notes
+Lote Maíz,maiz-grano,2026-11-24T08:00:00,62,24.0,Condición estable,Revisión matutina
+Lote Maíz,maiz-grano,2026-11-24T14:00:00,48,32.0,Humedad descendente,Planificar riego
+Sector Tomate,tomate-saladette,2026-11-24T08:00:00,70,23.5,Condición estable,Sin observaciones
+Sector Tomate,tomate-saladette,2026-11-24T14:00:00,43,33.0,"Humedad muy baja y temperatura alta","Revisar riego, sector norte"

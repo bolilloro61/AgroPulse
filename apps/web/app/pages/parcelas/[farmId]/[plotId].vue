@@ -32,6 +32,22 @@
               <span>Nueva Medición</span>
             </button>
             <button
+              type="button"
+              :disabled="importandoMediciones"
+              @click="csvMedicionesInput?.click()"
+              class="px-3 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs sm:text-sm font-bold transition-all flex items-center gap-1 disabled:opacity-50"
+            >
+              <span>📄</span>
+              <span>{{ importandoMediciones ? 'Importando...' : 'Importar CSV' }}</span>
+            </button>
+            <input
+              ref="csvMedicionesInput"
+              type="file"
+              accept=".csv,text/csv"
+              class="sr-only"
+              @change="importarMedicionesCsv"
+            />
+            <button
               @click="abrirModalEditarParcela"
               class="px-3 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs sm:text-sm font-bold transition-all flex items-center gap-1"
               title="Editar Parcela"
@@ -706,6 +722,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '~/composables/useAuth'
 import { summarizeMeasurements } from '~/utils/measurementSummary'
+import { parseCsv, validateCsvMeasurement } from '~/utils/csv'
 import {
   useRecommendation,
   type CropOption,
@@ -747,6 +764,8 @@ const mensajeExito = ref('')
 
 const mostrarModalNuevaMedicion = ref(false)
 const guardandoMedicion = ref(false)
+const importandoMediciones = ref(false)
+const csvMedicionesInput = ref<HTMLInputElement | null>(null)
 const medicionSeleccionada = ref<Measurement | null>(null)
 const medicionEditando = ref(false)
 const guardandoActualizacion = ref(false)
@@ -1078,6 +1097,75 @@ const guardarMedicion = async () => {
     errorMediciones.value = 'No se pudo guardar la medición desde la API. Inténtalo de nuevo.'
   } finally {
     guardandoMedicion.value = false
+  }
+}
+
+const importarMedicionesCsv = async (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  importandoMediciones.value = true
+  errorMediciones.value = ''
+  mensajeExito.value = ''
+  try {
+    if (!user.value || !farmId.value || !plotId.value) {
+      throw new Error('Debes iniciar sesión y seleccionar una parcela válida para importar mediciones.')
+    }
+
+    const { headers, rows } = parseCsv(await file.text())
+    const dateIndex = headers.indexOf('date')
+    const humidityIndex = headers.indexOf('humidity')
+    const temperatureIndex = headers.indexOf('temperature')
+    const situationIndex = headers.indexOf('situation')
+    const notesIndex = headers.indexOf('notes')
+    if ([dateIndex, humidityIndex, temperatureIndex].some(index => index < 0)) {
+      throw new Error('El CSV de mediciones debe incluir las columnas date, humidity y temperature.')
+    }
+
+    const medicionesCsv = rows.map((row, index) => {
+      const line = index + 2
+      return {
+        line,
+        ...validateCsvMeasurement({
+          date: row[dateIndex] ?? '',
+          humidity: row[humidityIndex] ?? '',
+          temperature: row[temperatureIndex] ?? '',
+          situation: situationIndex < 0 ? '' : row[situationIndex] ?? '',
+          notes: notesIndex < 0 ? '' : row[notesIndex] ?? ''
+        }, line)
+      }
+    })
+
+    let imported = 0
+    const failedRows: number[] = []
+    for (const medicion of medicionesCsv) {
+      try {
+        await apiCreateMeasurement(farmId.value, plotId.value, {
+          date: medicion.date,
+          humidity: medicion.humidity,
+          temperature: medicion.temperature,
+          situation: medicion.situation,
+          notes: medicion.notes
+        })
+        imported += 1
+      } catch (err) {
+        console.error(`Error al importar medición en fila ${medicion.line}:`, err)
+        failedRows.push(medicion.line)
+      }
+    }
+
+    await cargarMediciones()
+    if (imported > 0) mensajeExito.value = `Se importaron ${imported} mediciones correctamente.`
+    if (failedRows.length) {
+      errorMediciones.value = `No se pudieron importar las filas: ${failedRows.join(', ')}.`
+    }
+  } catch (err) {
+    console.error('Error al importar mediciones desde CSV:', err)
+    errorMediciones.value = err instanceof Error ? err.message : 'No se pudieron importar las mediciones desde el CSV.'
+  } finally {
+    importandoMediciones.value = false
+    input.value = ''
   }
 }
 

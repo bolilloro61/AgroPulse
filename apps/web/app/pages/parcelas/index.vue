@@ -68,6 +68,16 @@
       <p v-if="errorParcelas" role="alert" class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
         {{ errorParcelas }}
       </p>
+      <p v-if="mensajeCsv" role="status" class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+        {{ mensajeCsv }}
+      </p>
+      <input
+        ref="csvParcelasInput"
+        type="file"
+        accept=".csv,text/csv"
+        class="sr-only"
+        @change="importarParcelasCsv"
+      />
 
       <!-- Lista de Fincas y Parcelas -->
       <div class="space-y-8">
@@ -86,6 +96,15 @@
             </div>
 
             <div class="flex items-center gap-2">
+              <button
+                type="button"
+                :disabled="importandoParcelas"
+                @click="abrirImportadorParcelas(farm.id)"
+                class="px-4 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50"
+              >
+                <span>📄</span>
+                <span>{{ importandoParcelas ? 'Importando...' : 'Importar CSV' }}</span>
+              </button>
               <button
                 @click="abrirModalParcela(farm.id)"
                 class="px-4 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold transition-all flex items-center gap-1.5"
@@ -320,13 +339,22 @@
 import { ref, onMounted, watch } from 'vue'
 import { useAuth } from '~/composables/useAuth'
 import { useRecommendation, type CropOption, type Farm } from '~/composables/useRecommendation'
+import { parseCsv, validateCsvMeasurement } from '~/utils/csv'
 
 definePageMeta({
   middleware: 'auth'
 })
 
 const { user, role, logout, isAuthReady } = useAuth()
-const { getCrops, getFarms, createFarm: apiCreateFarm, createPlot: apiCreatePlot, updateFarm: apiUpdateFarm, deleteFarm: apiDeleteFarm } = useRecommendation()
+const {
+  getCrops,
+  getFarms,
+  createFarm: apiCreateFarm,
+  createPlot: apiCreatePlot,
+  createMeasurement: apiCreateMeasurement,
+  updateFarm: apiUpdateFarm,
+  deleteFarm: apiDeleteFarm
+} = useRecommendation()
 
 const handleLogout = async () => {
   await logout()
@@ -337,6 +365,10 @@ const farms = ref<Farm[]>([])
 const cultivos = ref<CropOption[]>([])
 const errorParcelas = ref('')
 const errorCatalogo = ref('')
+const mensajeCsv = ref('')
+const csvParcelasInput = ref<HTMLInputElement | null>(null)
+const fincaImportacionId = ref('')
+const importandoParcelas = ref(false)
 
 const fetchFarms = async () => {
   if (!user.value) return
@@ -480,6 +512,130 @@ const guardarParcela = async () => {
   } catch (err) {
     console.error('Error al guardar parcela:', err)
     errorParcelas.value = 'No se pudo guardar la parcela. Verifica que la finca exista e inténtalo de nuevo.'
+  }
+}
+
+const abrirImportadorParcelas = (farmId: string) => {
+  if (importandoParcelas.value) return
+  fincaImportacionId.value = farmId
+  csvParcelasInput.value?.click()
+}
+
+const importarParcelasCsv = async (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  importandoParcelas.value = true
+  errorParcelas.value = ''
+  mensajeCsv.value = ''
+  try {
+    if (cultivos.value.length === 0) await fetchCultivos()
+    if (cultivos.value.length === 0) throw new Error('No se pudo cargar el catálogo de cultivos.')
+    if (!fincaImportacionId.value) throw new Error('Selecciona la finca donde se crearán las parcelas.')
+
+    const { headers, rows } = parseCsv(await file.text())
+    const nameIndex = headers.indexOf('name')
+    const cropIndex = headers.indexOf('crop')
+    if (nameIndex < 0 || cropIndex < 0) {
+      throw new Error('El CSV de parcelas debe incluir las columnas name y crop.')
+    }
+    const dateIndex = headers.indexOf('date')
+    const humidityIndex = headers.indexOf('humidity')
+    const temperatureIndex = headers.indexOf('temperature')
+    const situationIndex = headers.indexOf('situation')
+    const notesIndex = headers.indexOf('notes')
+    const measurementHeaderCount = [dateIndex, humidityIndex, temperatureIndex].filter(index => index >= 0).length
+    if (measurementHeaderCount !== 0 && measurementHeaderCount !== 3) {
+      throw new Error('Para incluir mediciones, el CSV debe tener date, humidity y temperature.')
+    }
+    if (measurementHeaderCount === 0 && (situationIndex >= 0 || notesIndex >= 0)) {
+      throw new Error('Las columnas situation y notes solo se usan junto con date, humidity y temperature.')
+    }
+
+    const registros = rows.map((row, index) => {
+      const line = index + 2
+      const name = row[nameIndex]?.trim()
+      const cropValue = row[cropIndex]?.trim().toLowerCase()
+      const crop = cultivos.value.find(item =>
+        item.id.toLowerCase() === cropValue || item.name.trim().toLowerCase() === cropValue
+      )
+      if (!name) throw new Error(`Fila ${line}: falta el nombre de la parcela.`)
+      if (!crop) throw new Error(`Fila ${line}: el cultivo "${row[cropIndex]?.trim()}" no existe en el catálogo.`)
+
+      const plotKey = name.toLowerCase()
+      const measurementValues = {
+        date: dateIndex < 0 ? '' : row[dateIndex] ?? '',
+        humidity: humidityIndex < 0 ? '' : row[humidityIndex] ?? '',
+        temperature: temperatureIndex < 0 ? '' : row[temperatureIndex] ?? '',
+        situation: situationIndex < 0 ? '' : row[situationIndex] ?? '',
+        notes: notesIndex < 0 ? '' : row[notesIndex] ?? ''
+      }
+      const hasMeasurementData = Object.values(measurementValues).some(value => value.trim() !== '')
+      const measurement = hasMeasurementData
+        ? validateCsvMeasurement(measurementValues, line)
+        : null
+      return { line, name, cropId: crop.id, plotKey, measurement }
+    })
+
+    const parcelas = new Map<string, { name: string; cropId: string; lines: number[] }>()
+    for (const registro of registros) {
+      const parcela = parcelas.get(registro.plotKey)
+      if (parcela && parcela.cropId !== registro.cropId) {
+        throw new Error(`Fila ${registro.line}: la parcela "${registro.name}" aparece con cultivos distintos.`)
+      }
+      if (parcela) {
+        parcela.lines.push(registro.line)
+      } else {
+        parcelas.set(registro.plotKey, {
+          name: registro.name,
+          cropId: registro.cropId,
+          lines: [registro.line]
+        })
+      }
+    }
+
+    const farmId = fincaImportacionId.value
+    const failedRows = new Set<number>()
+    const plotIds = new Map<string, string>()
+    let importedPlots = 0
+    let importedMeasurements = 0
+    for (const [plotKey, parcela] of parcelas) {
+      try {
+        const farm = await apiCreatePlot(farmId, { name: parcela.name, cropId: parcela.cropId })
+        const createdPlot = farm.plots[farm.plots.length - 1]
+        if (!createdPlot?.id) throw new Error('La API no devolvió la parcela creada.')
+        plotIds.set(plotKey, createdPlot.id)
+        importedPlots += 1
+      } catch (err) {
+        console.error(`Error al importar parcela de las filas ${parcela.lines.join(', ')}:`, err)
+        parcela.lines.forEach(line => failedRows.add(line))
+      }
+    }
+
+    for (const registro of registros) {
+      if (!registro.measurement) continue
+      const plotId = plotIds.get(registro.plotKey)
+      if (!plotId) continue
+      try {
+        await apiCreateMeasurement(farmId, plotId, registro.measurement)
+        importedMeasurements += 1
+      } catch (err) {
+        console.error(`Error al importar medición en fila ${registro.line}:`, err)
+        failedRows.add(registro.line)
+      }
+    }
+
+    await fetchFarms()
+    mensajeCsv.value = `Se importaron ${importedPlots} parcelas y ${importedMeasurements} mediciones.`
+    if (failedRows.size) errorParcelas.value = `Fallaron las filas: ${[...failedRows].sort((a, b) => a - b).join(', ')}.`
+  } catch (err) {
+    console.error('Error al importar parcelas desde CSV:', err)
+    errorParcelas.value = err instanceof Error ? err.message : 'No se pudieron importar las parcelas desde el CSV.'
+  } finally {
+    importandoParcelas.value = false
+    fincaImportacionId.value = ''
+    input.value = ''
   }
 }
 </script>
