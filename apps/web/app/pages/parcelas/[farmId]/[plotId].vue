@@ -31,7 +31,22 @@
               <span>➕</span>
               <span>Nueva Medición</span>
             </button>
-
+            <button
+              @click="abrirModalEditarParcela"
+              class="px-3 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs sm:text-sm font-bold transition-all flex items-center gap-1"
+              title="Editar Parcela"
+            >
+              <span>✏️</span>
+              <span>Editar</span>
+            </button>
+            <button
+              @click="confirmarEliminarParcela"
+              class="px-3 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs sm:text-sm font-bold transition-all flex items-center gap-1"
+              title="Eliminar Parcela"
+            >
+              <span>🗑️</span>
+              <span>Eliminar</span>
+            </button>
           </div>
         </div>
       </div>
@@ -700,15 +715,67 @@
         </div>
       </div>
     </div>
+
+    <!-- Modal Editar Parcela -->
+    <div v-if="mostrarModalEditarParcela" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 space-y-5 shadow-2xl border border-slate-200">
+        <div class="flex justify-between items-center">
+          <h3 class="text-lg font-black text-slate-900">Editar Parcela</h3>
+          <button @click="mostrarModalEditarParcela = false" class="text-slate-400 hover:text-slate-600 text-xl font-bold">✕</button>
+        </div>
+
+        <form class="space-y-4" @submit.prevent="guardarEdicionParcela">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nombre / Identificador del Lote</label>
+            <input
+              v-model="parcelaEnEdicion.name"
+              required
+              placeholder="Ej. Lote A-3 Tomates"
+              class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Tipo de Cultivo</label>
+            <select
+              v-model="parcelaEnEdicion.cropId"
+              required
+              class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white"
+            >
+              <option v-for="crop in cultivos" :key="crop.id" :value="crop.id">
+                {{ crop.icon }} {{ crop.name }}
+              </option>
+            </select>
+          </div>
+
+          <div class="flex justify-end gap-3 pt-3">
+            <button
+              type="button"
+              @click="mostrarModalEditarParcela = false"
+              class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-600/30"
+            >
+              Guardar Cambios
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '~/composables/useAuth'
 import {
   useRecommendation,
+  type CropOption,
   type CropThresholds,
   type Farm,
   type Measurement,
@@ -721,21 +788,26 @@ definePageMeta({
 })
 
 const route = useRoute()
+const router = useRouter()
 const farmId = computed(() => (route.params.farmId || route.query.farmId) as string)
 const plotId = computed(() => (route.params.plotId || route.query.plotId) as string)
 
 const { user, isAuthReady } = useAuth()
 const {
   getPlot,
+  getCrops,
   getMeasurements,
   evaluateMeasurement,
   createMeasurement: apiCreateMeasurement,
   deleteMeasurement: apiDeleteMeasurement,
   updateMeasurement: apiUpdateMeasurement
+  updatePlot: apiUpdatePlot,
+  deletePlot: apiDeletePlot
 } = useRecommendation()
 
 const farm = ref<Farm | null>(null)
 const plot = ref<Plot | null>(null)
+const cultivos = ref<CropOption[]>([])
 const mediciones = ref<Measurement[]>([])
 const errorMediciones = ref('')
 const mensajeExito = ref('')
@@ -743,6 +815,59 @@ const mensajeExito = ref('')
 const mostrarModalNuevaMedicion = ref(false)
 const guardandoMedicion = ref(false)
 const medicionSeleccionada = ref<Measurement | null>(null)
+
+const mostrarModalEditarParcela = ref(false)
+const parcelaEnEdicion = ref({
+  name: '',
+  cropId: ''
+})
+
+const abrirModalEditarParcela = async () => {
+  if (!plot.value) return
+  if (cultivos.value.length === 0) {
+    try {
+      cultivos.value = await getCrops()
+    } catch (e) {
+      console.error('Error cargando cultivos:', e)
+    }
+  }
+  parcelaEnEdicion.value = {
+    name: plot.value.name,
+    cropId: plot.value.cropId
+  }
+  mostrarModalEditarParcela.value = true
+}
+
+const guardarEdicionParcela = async () => {
+  if (!parcelaEnEdicion.value.name || !parcelaEnEdicion.value.cropId || !farmId.value || !plotId.value) return
+  try {
+    const updated = await apiUpdatePlot(farmId.value, plotId.value, {
+      name: parcelaEnEdicion.value.name,
+      cropId: parcelaEnEdicion.value.cropId
+    })
+    if (updated?.plot) {
+      plot.value = updated.plot
+    }
+    mostrarModalEditarParcela.value = false
+    window.location.reload()
+  } catch (err) {
+    console.error('Error al editar parcela:', err)
+    errorMediciones.value = 'No se pudo actualizar la parcela. Inténtalo de nuevo.'
+  }
+}
+
+const confirmarEliminarParcela = async () => {
+  if (!plot.value || !farmId.value || !plotId.value) return
+  const confirmMsg = `¿Estás seguro de eliminar la parcela "${plot.value.name}"? Esta acción no se puede deshacer.`
+  if (!window.confirm(confirmMsg)) return
+  try {
+    await apiDeletePlot(farmId.value, plotId.value)
+    router.push('/parcelas')
+  } catch (err) {
+    console.error('Error al eliminar parcela:', err)
+    errorMediciones.value = 'No se pudo eliminar la parcela. Inténtalo de nuevo.'
+  }
+}
 
 // Valores iniciales de nueva medición
 const fechaHoraLocalActual = () => {

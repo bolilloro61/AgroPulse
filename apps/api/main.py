@@ -320,6 +320,85 @@ def create_farm(
     return {"id": farm_ref.id, **farm_data}
 
 
+@app.put("/api/farms/{farm_id}", status_code=status.HTTP_200_OK)
+def update_farm(
+    farm_id: str,
+    farm_input: FarmInput,
+    user_id: str = Depends(get_current_user_id),
+    db: Any = Depends(get_firestore),
+) -> dict[str, Any]:
+    farm = _get_owned_farm(db, farm_id, user_id)
+    farm_update = {
+        "name": farm_input.name,
+        "location": farm_input.location,
+    }
+    db.collection("farms").document(farm_id).update(farm_update)
+    updated = db.collection("farms").document(farm_id).get()
+    return {"id": updated.id, **updated.to_dict()}
+
+
+@app.delete("/api/farms/{farm_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_farm(
+    farm_id: str,
+    user_id: str = Depends(get_current_user_id),
+    db: Any = Depends(get_firestore),
+) -> None:
+    farm = _get_owned_farm(db, farm_id, user_id)
+    db.collection("farms").document(farm_id).delete()
+    measurements = (
+        db.collection("measurements")
+        .where(filter=FieldFilter("farmId", "==", farm_id))
+        .stream()
+    )
+    for snapshot in measurements:
+        db.collection("measurements").document(snapshot.id).delete()
+
+
+@app.put(
+    "/api/farms/{farm_id}/plots/{plot_id}",
+    status_code=status.HTTP_200_OK,
+)
+def update_plot(
+    farm_id: str,
+    plot_id: str,
+    plot_input: PlotInput,
+    user_id: str = Depends(get_current_user_id),
+    db: Any = Depends(get_firestore),
+) -> dict[str, Any]:
+    farm, plot = _get_owned_plot(db, farm_id, plot_id, user_id)
+    crop = _get_crop(db, plot_input.crop_id)
+    plot.update(
+        {
+            "name": plot_input.name,
+            "cropId": crop.id,
+            "cropType": crop.name,
+            "cropIcon": crop.icon,
+            "thresholds": crop.model_dump(by_alias=True)["thresholds"],
+        }
+    )
+    db.collection("farms").document(farm_id).update(
+        {"plots": [p if p.get("id") != plot_id else plot for p in farm["plots"]]}
+    )
+    farm_updated = _get_owned_farm(db, farm_id, user_id)
+    return {"farm": farm_updated, "plot": next(p for p in farm_updated["plots"] if p.get("id") == plot_id)}
+
+
+@app.delete(
+    "/api/farms/{farm_id}/plots/{plot_id}",
+)
+def delete_plot(
+    farm_id: str,
+    plot_id: str,
+    user_id: str = Depends(get_current_user_id),
+    db: Any = Depends(get_firestore),
+) -> dict[str, bool]:
+    farm, plot = _get_owned_plot(db, farm_id, plot_id, user_id)
+    db.collection("farms").document(farm_id).update(
+        {"plots": [p for p in farm["plots"] if p.get("id") != plot_id]}
+    )
+    return {"deleted": True}
+
+
 @app.post(
     "/api/farms/{farm_id}/plots",
     status_code=status.HTTP_201_CREATED,
