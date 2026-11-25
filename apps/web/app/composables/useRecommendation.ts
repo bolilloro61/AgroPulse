@@ -71,7 +71,7 @@ export interface Measurement {
 }
 
 interface ApiRequestOptions {
-  method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
+  method?: 'GET' | 'POST' | 'DELETE'
   body?: Record<string, unknown>
   authenticated?: boolean
 }
