@@ -85,13 +85,31 @@
               <p class="text-xs sm:text-sm text-slate-500 mt-1">📍 {{ farm.location }}</p>
             </div>
 
-            <button
-              @click="abrirModalParcela(farm.id)"
-              class="px-4 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold transition-all flex items-center gap-1.5"
-            >
-              <span>🌱</span>
-              <span>Añadir Parcela</span>
-            </button>
+            <div class="flex items-center gap-2">
+              <button
+                @click="abrirModalParcela(farm.id)"
+                class="px-4 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold transition-all flex items-center gap-1.5"
+              >
+                <span>🌱</span>
+                <span>Añadir Parcela</span>
+              </button>
+              <button
+                @click="abrirModalEditarFinca(farm)"
+                class="px-3 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold transition-all flex items-center gap-1"
+                title="Editar Finca"
+              >
+                <span>✏️</span>
+                <span>Editar</span>
+              </button>
+              <button
+                @click="confirmarEliminarFinca(farm)"
+                class="px-3 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-bold transition-all flex items-center gap-1"
+                title="Eliminar Finca"
+              >
+                <span>🗑️</span>
+                <span>Eliminar</span>
+              </button>
+            </div>
           </div>
 
           <!-- Grid de Parcelas de esta Finca -->
@@ -106,7 +124,7 @@
                 <div>
                   <h3 class="text-base font-bold text-slate-900">{{ plot.name }}</h3>
                   <span class="inline-block mt-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
-                    🌾 {{ plot.cropType }}
+                    {{ plot.cropIcon || '🌾' }} {{ plot.cropType }}
                   </span>
                 </div>
               </div>
@@ -248,6 +266,53 @@
         </form>
       </div>
     </div>
+    <!-- Modal Editar Finca -->
+    <div v-if="mostrarModalEditarFinca" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 space-y-5 shadow-2xl border border-slate-200">
+        <div class="flex justify-between items-center">
+          <h3 class="text-lg font-black text-slate-900">Editar Finca</h3>
+          <button @click="mostrarModalEditarFinca = false" class="text-slate-400 hover:text-slate-600 text-xl font-bold">✕</button>
+        </div>
+
+        <form class="space-y-4" @submit.prevent="guardarEdicionFinca">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nombre de la Finca</label>
+            <input
+              v-model="fincaEnEdicion.name"
+              required
+              placeholder="Ej. Finca Santa Lucía"
+              class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Ubicación / Sector</label>
+            <input
+              v-model="fincaEnEdicion.location"
+              required
+              placeholder="Ej. Valle del Fuerte, Km 12"
+              class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+            />
+          </div>
+
+          <div class="flex justify-end gap-3 pt-3">
+            <button
+              type="button"
+              @click="mostrarModalEditarFinca = false"
+              class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-600/30"
+            >
+              Guardar Cambios
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -261,7 +326,7 @@ definePageMeta({
 })
 
 const { user, role, logout, isAuthReady } = useAuth()
-const { getCrops, getFarms, createFarm: apiCreateFarm, createPlot: apiCreatePlot } = useRecommendation()
+const { getCrops, getFarms, createFarm: apiCreateFarm, createPlot: apiCreatePlot, updateFarm: apiUpdateFarm, deleteFarm: apiDeleteFarm } = useRecommendation()
 
 const handleLogout = async () => {
   await logout()
@@ -315,6 +380,56 @@ const nuevaFinca = ref({
   name: '',
   location: ''
 })
+
+const mostrarModalEditarFinca = ref(false)
+const fincaEnEdicion = ref({
+  id: '',
+  name: '',
+  location: ''
+})
+
+const abrirModalEditarFinca = (farm: Farm) => {
+  fincaEnEdicion.value = {
+    id: farm.id,
+    name: farm.name,
+    location: farm.location
+  }
+  mostrarModalEditarFinca.value = true
+}
+
+const guardarEdicionFinca = async () => {
+  if (!fincaEnEdicion.value.id || !fincaEnEdicion.value.name || !fincaEnEdicion.value.location) return
+  try {
+    await apiUpdateFarm(fincaEnEdicion.value.id, {
+      name: fincaEnEdicion.value.name,
+      location: fincaEnEdicion.value.location
+    })
+    mostrarModalEditarFinca.value = false
+    errorParcelas.value = ''
+    await fetchFarms()
+  } catch (err) {
+    console.error('Error al editar finca:', err)
+    errorParcelas.value = 'No se pudo actualizar la finca. Inténtalo de nuevo.'
+  }
+}
+
+const confirmarEliminarFinca = async (farm: Farm) => {
+  const plotsCount = farm.plots?.length || 0
+  const confirmMsg = plotsCount > 0
+    ? `¿Estás seguro de eliminar la finca "${farm.name}"? Se eliminarán también sus ${plotsCount} parcelas asociadas.`
+    : `¿Estás seguro de eliminar la finca "${farm.name}"?`
+
+  if (!window.confirm(confirmMsg)) return
+
+  try {
+    await apiDeleteFarm(farm.id)
+    errorParcelas.value = ''
+    await fetchFarms()
+  } catch (err) {
+    console.error('Error al eliminar finca:', err)
+    errorParcelas.value = 'No se pudo eliminar la finca. Inténtalo de nuevo.'
+  }
+}
 
 const guardarFinca = async () => {
   if (!nuevaFinca.value.name || !nuevaFinca.value.location || !user.value) return
