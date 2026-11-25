@@ -61,7 +61,7 @@ export interface Measurement {
 }
 
 interface ApiRequestOptions {
-  method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
+  method?: 'GET' | 'POST' | 'DELETE'
   body?: Record<string, unknown>
   authenticated?: boolean
 }
@@ -135,22 +135,6 @@ export const useRecommendation = () => {
       request<{ deleted: boolean }>(
         `/measurements/${encodeURIComponent(measurementId)}`,
         { method: 'DELETE', authenticated: true }
-      ),
-    updateMeasurement: (
-      farmId: string,
-      plotId: string,
-      measurementId: string,
-      measurement: {
-        date: string
-        humidity: number
-        temperature: number
-        situation: string
-        notes: string
-      }
-    ) =>
-      request<Measurement>(
-        `/farms/${encodeURIComponent(farmId)}/plots/${encodeURIComponent(plotId)}/measurements/${encodeURIComponent(measurementId)}`,
-        { method: 'PUT', body: measurement, authenticated: true }
       )
   }
 }
