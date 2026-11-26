@@ -1,0 +1,5 @@
+name,crop,date,humidity,temperature,situation,notes
+Lote Tomate,tomate-saladette,2026-11-24T08:00:00,72,22.4,Condición estable,Revisión matutina
+Lote Tomate,tomate-saladette,2026-11-24T14:00:00,58,29.0,Humedad en descenso,Programar riego
+Lote Chile,chile-jalapeno,2026-11-24T08:00:00,66,24.0,Condición estable,Sin observaciones
+Lote Chile,chile-jalapeno,2026-11-24T14:00:00,62,27.5,Condición estable,Revisar nuevamente por la tarde

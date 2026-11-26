@@ -526,6 +526,7 @@
                 v-for="alert in alerts"
                 :key="alert.farmId + alert.plot.id"
                 class="border rounded-xl p-4 hover:shadow-sm transition-all"
+                :class="alert.averageStatus.status === 'risk' ? 'border-red-300 bg-red-50/50' : 'border-slate-200'"
               >
                 <div class="flex items-start gap-3">
                   <div class="flex-1">
@@ -544,7 +545,16 @@
                       >
                         {{ alert.recommendation.nivel }}
                       </span>
+                      <span
+                        class="px-2 py-0.5 text-xs font-semibold rounded"
+                        :class="[alert.averageStatus.claseEstado, alert.averageStatus.claseTexto]"
+                      >
+                        {{ alert.averageStatus.icono }} Promedio: {{ alert.averageStatus.estado }}
+                      </span>
                     </div>
+                    <p class="text-xs text-slate-600 mb-2">
+                      {{ alert.averageStatus.tendencia }}. {{ alert.averageStatus.consejo }}
+                    </p>
                     <p class="text-sm text-slate-700 mb-1 font-medium">{{ alert.recommendation.accion }}</p>
                     <p class="text-xs text-slate-600">{{ alert.recommendation.explicacion }}</p>
                   </div>
