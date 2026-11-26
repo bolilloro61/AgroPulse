@@ -121,7 +121,7 @@ const handleLogin = async () => {
     } else if (err.code === 'auth/too-many-requests') {
       errorMsg.value = 'Demasiados intentos fallidos. Intenta nuevamente en unos minutos.'
     } else {
-      errorMsg.value = err.message || 'Error al iniciar sesión. Inténtalo nuevamente.'
+      errorMsg.value = err.data?.detail || err.message || 'Error al iniciar sesión. Inténtalo nuevamente.'
     }
   } finally {
     loading.value = false

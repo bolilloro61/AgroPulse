@@ -48,6 +48,7 @@
               @change="importarMedicionesCsv"
             />
             <button
+              v-if="role === 'Gerente'"
               @click="abrirModalEditarParcela"
               class="px-3 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs sm:text-sm font-bold transition-all flex items-center gap-1"
               title="Editar Parcela"
@@ -56,6 +57,7 @@
               <span>Editar</span>
             </button>
             <button
+              v-if="role === 'Gerente'"
               @click="confirmarEliminarParcela"
               class="px-3 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs sm:text-sm font-bold transition-all flex items-center gap-1"
               title="Eliminar Parcela"
@@ -355,6 +357,7 @@
                 <th class="px-4 py-3 border-r border-slate-200">Situación / Estado</th>
                 <th class="px-4 py-3 border-r border-slate-200">Diagnóstico del Motor</th>
                 <th class="px-4 py-3 border-r border-slate-200">Recomendación Explicable</th>
+                <th class="px-4 py-3 border-r border-slate-200">Realizada por</th>
                 <th class="px-3 py-3 text-center w-24">Acciones</th>
               </tr>
             </thead>
@@ -425,6 +428,10 @@
                   </div>
                 </td>
 
+                <td class="px-4 py-3 border-r border-slate-200 whitespace-nowrap text-slate-600">
+                  {{ med.createdByName || 'Usuario anterior' }}
+                </td>
+
                 <!-- Celda Acciones -->
                 <td class="px-3 py-3 text-center whitespace-nowrap">
                   <div class="flex items-center justify-center gap-1">
@@ -436,6 +443,7 @@
                       👁️
                     </button>
                     <button
+                      v-if="role === 'Gerente' || med.createdById === user?.uid"
                       @click="editarMedicion(med)"
                       title="Editar Medición"
                       class="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-100 transition-colors"
@@ -443,6 +451,7 @@
                       ✏️
                     </button>
                     <button
+                      v-if="role === 'Gerente'"
                       @click="eliminarMedicion(med.id)"
                       title="Eliminar Registro"
                       class="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
@@ -455,7 +464,7 @@
 
               <!-- Estado Vacío -->
               <tr v-if="medicionesFiltradas.length === 0">
-                <td colspan="8" class="text-center py-12 px-4 text-slate-500 bg-white">
+                <td colspan="9" class="text-center py-12 px-4 text-slate-500 bg-white">
                   <div class="max-w-sm mx-auto space-y-3">
                     <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-2xl mx-auto">
                       📋
@@ -829,7 +838,7 @@ const router = useRouter()
 const farmId = computed(() => (route.params.farmId || route.query.farmId) as string)
 const plotId = computed(() => (route.params.plotId || route.query.plotId) as string)
 
-const { user, isAuthReady } = useAuth()
+const { user, role, isAuthReady } = useAuth()
 const {
   getPlot,
   getCrops,

@@ -27,6 +27,57 @@
 
         <form class="space-y-5" @submit.prevent="handleRegister">
           <div>
+            <label for="role" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+              ¿Eres gerente o trabajador?
+            </label>
+            <select
+              id="role"
+              v-model="selectedRole"
+              class="w-full px-4 py-3 rounded-xl border border-slate-300 bg-slate-50 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
+            >
+              <option value="Gerente">Gerente</option>
+              <option value="Trabajador">Trabajador</option>
+            </select>
+          </div>
+
+          <div v-if="selectedRole === 'Trabajador'">
+            <label for="workerCode" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+              Código de finca (6 dígitos)
+            </label>
+            <input
+              id="workerCode"
+              v-model="workerCode"
+              name="workerCode"
+              type="text"
+              inputmode="numeric"
+              autocomplete="one-time-code"
+              pattern="[0-9]{6}"
+              maxlength="6"
+              required
+              placeholder="000000"
+              class="w-full px-4 py-3 rounded-xl border border-slate-300 bg-slate-50 text-slate-900 text-sm tracking-widest focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
+            />
+            <p class="mt-1 text-xs text-slate-500">Solicita este código al gerente de la finca.</p>
+          </div>
+
+          <div>
+            <label for="displayName" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+              Nombre
+            </label>
+            <input
+              id="displayName"
+              v-model="displayName"
+              name="displayName"
+              type="text"
+              autocomplete="name"
+              maxlength="100"
+              required
+              placeholder="Tu nombre"
+              class="w-full px-4 py-3 rounded-xl border border-slate-300 bg-slate-50 text-slate-900 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
+            />
+          </div>
+
+          <div>
             <label for="email" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
               Correo Electrónico
             </label>
@@ -42,15 +93,16 @@
             />
           </div>
 
-          <!-- Rol Funcional Asignado Automáticamente: Gerente -->
           <div class="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-slate-800 flex items-center gap-3.5">
             <div class="w-11 h-11 rounded-2xl bg-emerald-600 text-white flex items-center justify-center text-2xl shrink-0 shadow-md shadow-emerald-600/20">
-              🛡️
+              {{ selectedRole === 'Gerente' ? '🛡️' : '🌱' }}
             </div>
             <div>
-              <h4 class="text-sm font-black text-emerald-950">Rol Asignado: Gerente</h4>
+              <h4 class="text-sm font-black text-emerald-950">Rol: {{ selectedRole }}</h4>
               <p class="text-xs text-emerald-700 leading-snug mt-0.5">
-                Acceso total al sistema con todos los permisos habilitados (gestión de parcelas, monitoreo ambiental y motor de recomendaciones).
+                {{ selectedRole === 'Gerente'
+                  ? 'Podrás administrar fincas, parcelas, trabajadores y mediciones.'
+                  : 'Podrás ver las parcelas de la finca y trabajar en las mediciones que te asigne el gerente.' }}
               </p>
             </div>
           </div>
@@ -101,7 +153,7 @@
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              <span>{{ loading ? 'Creando cuenta...' : 'Crear Cuenta y Asignar Rol' }}</span>
+              <span>{{ loading ? 'Creando cuenta...' : 'Crear Cuenta' }}</span>
             </button>
           </div>
         </form>
@@ -129,6 +181,9 @@ import { useAuth } from '~/composables/useAuth'
 const email = ref('')
 const password = ref('')
 const confirmPassword = ref('')
+const displayName = ref('')
+const selectedRole = ref('Gerente')
+const workerCode = ref('')
 const loading = ref(false)
 const errorMsg = ref('')
 
@@ -150,7 +205,13 @@ const handleRegister = async () => {
   loading.value = true
 
   try {
-    await register(email.value, password.value, 'Gerente')
+    await register(
+      email.value,
+      password.value,
+      selectedRole.value,
+      displayName.value,
+      selectedRole.value === 'Trabajador' ? workerCode.value : ''
+    )
     // Cuando se inicie sesión (o registre) vuelve a la página de inicio
     await navigateTo('/')
   } catch (err: any) {
@@ -162,7 +223,7 @@ const handleRegister = async () => {
     } else if (err.code === 'auth/weak-password') {
       errorMsg.value = 'La contraseña es muy débil. Usa al menos 6 caracteres combinando letras y números.'
     } else {
-      errorMsg.value = err.message || 'Error al crear la cuenta. Inténtalo nuevamente.'
+      errorMsg.value = err.data?.detail || err.message || 'Error al crear la cuenta. Inténtalo nuevamente.'
     }
   } finally {
     loading.value = false

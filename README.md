@@ -150,7 +150,9 @@ Copiar el archivo `.env.example` tanto en la carpeta web como en la api:
 cp .env.example apps/web/.env
 cp .env.example apps/api/.env
 ```
-*Completar las llaves públicas de Firebase en `apps/web/.env` y la configuración de servicio backend en `apps/api/.env`.*
+*Completar las llaves públicas de Firebase en `apps/web/.env`; el backend puede usar ADC sin una ruta de credenciales en `apps/api/.env`.*
+
+La API usa Application Default Credentials (ADC) si no se configura una ruta de clave. En Google Cloud, asigna al servicio una identidad con acceso a Firebase Auth y Firestore; no configures una ruta de tu equipo. Para desarrollo local puedes autenticar ADC o definir `FIREBASE_SERVICE_ACCOUNT_PATH` en tu `.env` ignorado por Git.
 
 ### 3. Ejecutar el Backend (Python)
 ```bash
@@ -178,6 +180,17 @@ python .\scripts\seed_crops.py
 ```
 
 No agregues la clave al repositorio ni la compartas; al terminar, elimina la variable de la sesión con `Remove-Item Env:GOOGLE_APPLICATION_CREDENTIALS`.
+
+### Roles y permisos
+Al registrarse se elige Gerente o Trabajador. El trabajador necesita el código de seis dígitos de una finca; después puede vincular más fincas desde el catálogo. En una finca vinculada ve los nombres de sus parcelas, pero solo abre mediciones de las parcelas que el gerente le asigna. Puede crear y editar sus propias mediciones; el gerente administra fincas, parcelas, trabajadores y todos los registros de sus fincas.
+
+El gerente encuentra el código y la asignación de parcelas en el menú `⋮` de la finca. Las operaciones de acceso se validan en la API. Para impedir que el navegador acceda directamente a Firestore, despliega también las reglas incluidas desde la raíz del repositorio:
+
+```powershell
+firebase deploy --only firestore:rules
+```
+
+La API debe tener credenciales de Firebase Admin configuradas como se describe arriba.
 
 ---
 

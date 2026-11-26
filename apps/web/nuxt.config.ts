@@ -8,8 +8,7 @@ export default defineNuxtConfig({
     optimizeDeps: {
       include: [
         'firebase/app',
-        'firebase/auth',
-        'firebase/firestore'
+        'firebase/auth'
       ]
     }
   },

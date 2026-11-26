@@ -19,7 +19,7 @@ const isAlertType = (tipo: RecommendationResult['tipo']): tipo is AlertType => {
 }
 
 export const useAlerts = () => {
-  const { user } = useAuth()
+  const { user, role } = useAuth()
   const { getFarms, evaluateMeasurement, getMeasurements } = useRecommendation()
 
   const farms = ref<Farm[]>([])
@@ -42,6 +42,7 @@ export const useAlerts = () => {
 
       for (const farm of farms.value) {
         for (const plot of farm.plots || []) {
+          if (role.value === 'Trabajador' && !plot.assigned) continue
           if (!plot.thresholds) continue
 
           const measurements = await getMeasurements(farm.id, plot.id).catch(() => [])

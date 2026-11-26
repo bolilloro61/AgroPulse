@@ -1,5 +1,5 @@
 export default defineNuxtRouteMiddleware(async (to) => {
-  const { user, isAuthReady } = useAuth()
+  const { user, role, isAuthReady } = useAuth()
   
   if (import.meta.client) {
     if (!isAuthReady.value) {
@@ -14,7 +14,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
     }
   }
 
-  if (!user.value) {
+  if (!user.value || !role.value) {
     return navigateTo({
       path: '/login',
       query: { redirect: to.fullPath }
