@@ -1,0 +1,4 @@
+date,humidity,temperature,situation,notes
+2026-11-24T08:00:00,55,29.5,Humedad baja,Revisar riego del sector
+2026-11-24T14:00:00,45,33.0,"Descenso de humedad y aumento de temperatura",Riego pendiente
+2026-11-25T08:00:00,42,34.2,Condición de riesgo,Revisar suelo y sistema de riego

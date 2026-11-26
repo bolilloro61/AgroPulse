@@ -1,0 +1,5 @@
+name,crop,date,humidity,temperature,situation,notes
+Huerta Aguacate,aguacate-hass,2026-11-24T07:30:00,64,21.0,Condición estable,Monitoreo de humedad
+Huerta Aguacate,aguacate-hass,2026-11-24T15:00:00,58,27.0,Temperatura alta,Revisar sombra y riego
+Parcela Uva,vid-uva,2026-11-24T07:30:00,55,18.0,Condición estable,Sin observaciones
+Parcela Uva,vid-uva,2026-11-24T15:00:00,48,29.0,Humedad baja,Verificar humedad del suelo

@@ -1,0 +1,4 @@
+date,humidity,temperature,situation,notes
+2026-11-24T05:30:00,82,4.5,Temperatura baja,Proteger el cultivo del frío
+2026-11-24T06:30:00,80,2.0,Posible helada,Inspeccionar hojas y brotes
+2026-11-25T05:30:00,78,6.0,Recuperación gradual,Continuar monitoreo
