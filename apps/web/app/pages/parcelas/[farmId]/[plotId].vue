@@ -140,6 +140,93 @@
         </div>
       </div>
 
+      <!-- Gráficas de Rendimiento: Humedad y Temperatura -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div
+          v-for="chart in [chartHumedad, chartTemperatura]"
+          :key="chart.id"
+          class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-3"
+        >
+          <div class="flex items-center justify-between gap-2">
+            <div>
+              <h2 class="text-sm font-black text-slate-900 flex items-center gap-1.5">
+                <span>{{ chart.icon }}</span>
+                <span>{{ chart.title }}</span>
+              </h2>
+              <p class="text-[11px] text-slate-500">
+                Óptimo: {{ chart.optMin }}{{ chart.unit }} - {{ chart.optMax }}{{ chart.unit }}
+              </p>
+            </div>
+            <div v-if="chart.latest !== null" class="text-right font-mono">
+              <div class="text-base font-black" :class="chart.textClass">
+                {{ chart.latest }}{{ chart.unit }}
+              </div>
+              <div v-if="chart.delta !== null" class="text-[11px] font-bold" :class="chart.delta >= 0 ? 'text-emerald-600' : 'text-amber-600'">
+                {{ chart.delta >= 0 ? '+' : '' }}{{ chart.delta }}{{ chart.unit }} vs anterior
+              </div>
+            </div>
+          </div>
+
+          <div v-if="chart.points.length === 0" class="h-44 flex items-center justify-center rounded-xl bg-slate-50 border border-dashed border-slate-200 text-xs text-slate-400">
+            Sin mediciones para graficar
+          </div>
+
+          <div v-else class="w-full">
+            <svg :viewBox="`0 0 ${CHART_W} ${CHART_H}`" class="w-full h-44 overflow-visible" role="img" :aria-label="chart.title">
+              <!-- Banda óptima -->
+              <rect
+                :x="CHART_PAD_X"
+                :y="chart.optTopY"
+                :width="CHART_W - CHART_PAD_X * 2"
+                :height="Math.max(0, chart.optBottomY - chart.optTopY)"
+                :fill="chart.bandFill"
+                rx="4"
+              />
+              <line
+                :x1="CHART_PAD_X" :x2="CHART_W - CHART_PAD_X"
+                :y1="chart.optTopY" :y2="chart.optTopY"
+                :stroke="chart.stroke" stroke-opacity="0.35" stroke-dasharray="4 4" stroke-width="1"
+              />
+              <line
+                :x1="CHART_PAD_X" :x2="CHART_W - CHART_PAD_X"
+                :y1="chart.optBottomY" :y2="chart.optBottomY"
+                :stroke="chart.stroke" stroke-opacity="0.35" stroke-dasharray="4 4" stroke-width="1"
+              />
+
+              <!-- Área y línea de tendencia -->
+              <path v-if="chart.areaPath" :d="chart.areaPath" :fill="chart.areaFill" />
+              <path v-if="chart.linePath" :d="chart.linePath" fill="none" :stroke="chart.stroke" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+
+              <!-- Puntos de medición -->
+              <circle
+                v-for="(pt, i) in chart.points"
+                :key="i"
+                :cx="pt.x"
+                :cy="pt.y"
+                r="4"
+                fill="white"
+                :stroke="chart.stroke"
+                stroke-width="2.2"
+              >
+                <title>{{ pt.label }}: {{ pt.value }}{{ chart.unit }}</title>
+              </circle>
+
+              <!-- Etiquetas de escala Y -->
+              <text :x="CHART_PAD_X - 6" :y="CHART_PAD_Y + 4" text-anchor="end" class="fill-slate-400 text-[10px] font-mono">
+                {{ chart.yMax }}{{ chart.unit }}
+              </text>
+              <text :x="CHART_PAD_X - 6" :y="CHART_H - CHART_PAD_Y" text-anchor="end" class="fill-slate-400 text-[10px] font-mono">
+                {{ chart.yMin }}{{ chart.unit }}
+              </text>
+            </svg>
+            <div class="flex justify-between text-[10px] font-mono text-slate-400 px-8 mt-1">
+              <span>{{ chart.firstDate }}</span>
+              <span v-if="chart.points.length > 1">{{ chart.lastDate }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Filtros de mediciones -->
       <div class="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-sm space-y-3">
         <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 pb-3 border-b border-slate-100">
@@ -830,6 +917,118 @@ const cargarMediciones = async () => {
 const ultimaMedicion = computed(() => {
   return mediciones.value.length > 0 ? mediciones.value[0] : null
 })
+
+// Gráficas SVG de Humedad y Temperatura (ordenadas cronológicamente)
+const CHART_W = 520
+const CHART_H = 160
+const CHART_PAD_X = 38
+const CHART_PAD_Y = 14
+
+const buildChart = (
+  id: string,
+  title: string,
+  icon: string,
+  unit: string,
+  stroke: string,
+  areaFill: string,
+  bandFill: string,
+  textClass: string,
+  optRange: { min: number; max: number },
+  getValue: (m: Measurement) => number
+) => {
+  const ordered = [...medicionesFiltradas.value].sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  )
+  const values = ordered.map(getValue).filter(Number.isFinite)
+  const rawMin = Math.min(...values, optRange.min)
+  const rawMax = Math.max(...values, optRange.max)
+  const pad = rawMax === rawMin ? 2 : Math.ceil((rawMax - rawMin) * 0.1)
+  const yMin = Math.floor(rawMin - pad)
+  const yMax = Math.ceil(rawMax + pad)
+  const spanY = Math.max(1, yMax - yMin)
+  const innerW = CHART_W - CHART_PAD_X * 2
+  const innerH = CHART_H - CHART_PAD_Y * 2
+
+  const toY = (v: number) => CHART_PAD_Y + innerH - ((v - yMin) / spanY) * innerH
+  const points = ordered.map((m, idx) => {
+    const x = ordered.length === 1
+      ? CHART_PAD_X + innerW / 2
+      : CHART_PAD_X + (idx / (ordered.length - 1)) * innerW
+    const value = getValue(m)
+    return {
+      x: Number(x.toFixed(1)),
+      y: Number(toY(value).toFixed(1)),
+      value,
+      label: `${formatearFecha(m.date)} ${formatearHora(m.date)}`
+    }
+  })
+
+  const linePath = points.length > 1
+    ? points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ')
+    : ''
+  const baselineY = CHART_H - CHART_PAD_Y
+  const areaPath = points.length > 1
+    ? `${linePath} L${points[points.length - 1]!.x},${baselineY} L${points[0]!.x},${baselineY} Z`
+    : ''
+
+  const latest = points.length > 0 ? points[points.length - 1]!.value : null
+  const prev = points.length > 1 ? points[points.length - 2]!.value : null
+  const delta = latest !== null && prev !== null ? Number((latest - prev).toFixed(1)) : null
+
+  return {
+    id,
+    title,
+    icon,
+    unit,
+    stroke,
+    areaFill,
+    bandFill,
+    textClass,
+    optMin: optRange.min,
+    optMax: optRange.max,
+    optTopY: Number(toY(optRange.max).toFixed(1)),
+    optBottomY: Number(toY(optRange.min).toFixed(1)),
+    yMin,
+    yMax,
+    points,
+    linePath,
+    areaPath,
+    latest,
+    delta,
+    firstDate: ordered[0] ? formatearFecha(ordered[0].date) : '',
+    lastDate: ordered[ordered.length - 1] ? formatearFecha(ordered[ordered.length - 1]!.date) : ''
+  }
+}
+
+const chartHumedad = computed(() =>
+  buildChart(
+    'humidity',
+    'Tendencia de Humedad del Suelo',
+    '💧',
+    '%',
+    '#059669',
+    'rgba(16, 185, 129, 0.12)',
+    'rgba(16, 185, 129, 0.08)',
+    'text-emerald-700',
+    thresholds.value.humidity,
+    m => Number(m.humidity)
+  )
+)
+
+const chartTemperatura = computed(() =>
+  buildChart(
+    'temperature',
+    'Tendencia de Temperatura',
+    '🌡️',
+    '°C',
+    '#d97706',
+    'rgba(245, 158, 11, 0.12)',
+    'rgba(245, 158, 11, 0.08)',
+    'text-amber-700',
+    thresholds.value.temperature,
+    m => Number(m.temperature)
+  )
+)
 
 // Filtrado de Mediciones
 const medicionesFiltradas = computed(() => {
