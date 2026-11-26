@@ -39,6 +39,7 @@ export interface Plot {
   cropIcon: string
   thresholds: CropThresholds
   createdAt: string
+  assigned?: boolean
 }
 
 export interface FarmInput {
@@ -66,8 +67,17 @@ export interface Measurement {
   temperature: number
   situation: string
   notes: string
+  createdById?: string
+  createdByName?: string
   recommendation: RecommendationResult
   createdAt: string
+}
+
+export interface FarmWorker {
+  uid: string
+  email: string
+  displayName: string
+  plotIds: string[]
 }
 
 interface ApiRequestOptions {
@@ -108,6 +118,25 @@ export const useRecommendation = () => {
       body: { cropId, humidity, temperature, situation }
     }),
     getFarms: () => request<Farm[]>('/farms', { authenticated: true }),
+    joinFarm: (workerCode: string) =>
+      request<{ farmId: string; farmName: string }>('/workers/farms', {
+        method: 'POST',
+        body: { workerCode },
+        authenticated: true
+      }),
+    getFarmWorkerCode: (farmId: string) =>
+      request<{ code: string }>(`/farms/${encodeURIComponent(farmId)}/worker-code`, {
+        authenticated: true
+      }),
+    getFarmWorkers: (farmId: string) =>
+      request<FarmWorker[]>(`/farms/${encodeURIComponent(farmId)}/workers`, {
+        authenticated: true
+      }),
+    updateWorkerAssignments: (farmId: string, workerId: string, plotIds: string[]) =>
+      request<{ plotIds: string[] }>(
+        `/farms/${encodeURIComponent(farmId)}/workers/${encodeURIComponent(workerId)}/assignments`,
+        { method: 'PUT', body: { plotIds }, authenticated: true }
+      ),
     createFarm: (farm: { name: string; location: string }) =>
       request<Farm>('/farms', { method: 'POST', body: farm, authenticated: true }),
     createPlot: (farmId: string, plot: { name: string; cropId: string }) =>

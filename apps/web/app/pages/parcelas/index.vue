@@ -57,6 +57,7 @@
         </div>
 
         <button
+          v-if="role === 'Gerente'"
           @click="mostrarModalFinca = true"
           class="px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm transition-all shadow-lg shadow-emerald-600/30 hover:scale-[1.02] flex items-center gap-2 shrink-0"
         >
@@ -95,49 +96,32 @@
               <p class="text-xs sm:text-sm text-slate-500 mt-1">📍 {{ farm.location }}</p>
             </div>
 
-            <div class="flex items-center gap-2">
+            <div v-if="role === 'Gerente'" class="relative">
               <button
                 type="button"
-                :disabled="importandoParcelas"
-                @click="abrirImportadorParcelas(farm.id)"
-                class="px-4 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50"
+                :aria-expanded="menuFincaAbierto === farm.id"
+                aria-label="Acciones de la finca"
+                @click="menuFincaAbierto = menuFincaAbierto === farm.id ? '' : farm.id"
+                class="w-10 h-10 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xl font-black"
               >
-                <span>📄</span>
-                <span>{{ importandoParcelas ? 'Importando...' : 'Importar CSV' }}</span>
+                ⋮
               </button>
-              <button
-                @click="abrirModalParcela(farm.id)"
-                class="px-4 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold transition-all flex items-center gap-1.5"
-              >
-                <span>🌱</span>
-                <span>Añadir Parcela</span>
-              </button>
-              <button
-                @click="abrirModalEditarFinca(farm)"
-                class="px-3 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold transition-all flex items-center gap-1"
-                title="Editar Finca"
-              >
-                <span>✏️</span>
-                <span>Editar</span>
-              </button>
-              <button
-                @click="confirmarEliminarFinca(farm)"
-                class="px-3 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-bold transition-all flex items-center gap-1"
-                title="Eliminar Finca"
-              >
-                <span>🗑️</span>
-                <span>Eliminar</span>
-              </button>
+              <div v-if="menuFincaAbierto === farm.id" class="absolute right-0 top-12 z-30 w-56 p-2 rounded-xl bg-white border border-slate-200 shadow-xl space-y-1">
+                <button @click="menuFincaAbierto = ''; abrirModalParcela(farm.id)" class="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-emerald-50 text-slate-700">🌱 Añadir parcela</button>
+                <button @click="menuFincaAbierto = ''; abrirImportadorParcelas(farm.id)" class="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-emerald-50 text-slate-700">📄 Importar CSV</button>
+                <button @click="menuFincaAbierto = ''; abrirModalTrabajadores(farm)" class="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-emerald-50 text-slate-700">👥 Administrar trabajadores</button>
+                <button @click="menuFincaAbierto = ''; abrirModalEditarFinca(farm)" class="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-emerald-50 text-slate-700">✏️ Editar finca</button>
+                <button @click="menuFincaAbierto = ''; confirmarEliminarFinca(farm)" class="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-red-50 text-red-700">🗑️ Eliminar finca</button>
+              </div>
             </div>
           </div>
 
           <!-- Grid de Parcelas de esta Finca -->
           <div v-if="farm.plots && farm.plots.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            <NuxtLink
+            <div
               v-for="plot in farm.plots"
               :key="plot.id"
-              :to="`/parcelas/${farm.id}/${plot.id}`"
-              class="block bg-slate-50 rounded-2xl p-5 border border-slate-200/90 hover:border-emerald-300 hover:shadow-md hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 transition-all space-y-4"
+              class="bg-slate-50 rounded-2xl p-5 border border-slate-200/90 transition-all space-y-4"
             >
               <div class="flex justify-between items-start">
                 <div>
@@ -173,13 +157,32 @@
                   </div>
                 </div>
               </div>
-            </NuxtLink>
+              <NuxtLink
+                v-if="role === 'Gerente' || plot.assigned"
+                :to="`/parcelas/${farm.id}/${plot.id}`"
+                class="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold"
+              >
+                Abrir mediciones →
+              </NuxtLink>
+              <p v-else class="text-xs text-slate-500">Mediciones sin asignar. Solicita acceso al gerente.</p>
+            </div>
             </div>
 
           <div v-else class="text-center py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-300 text-xs text-slate-500">
-            No hay parcelas registradas en esta finca aún. Haz clic en "Añadir Parcela" para comenzar.
+            {{ role === 'Gerente'
+              ? 'No hay parcelas registradas. Usa el menú de la finca para añadir una.'
+              : 'Esta finca todavía no tiene parcelas registradas.' }}
           </div>
         </div>
+      </div>
+      <div v-if="role === 'Trabajador'" class="flex justify-center">
+        <button
+          @click="mostrarModalUnirFinca = true"
+          class="px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm transition-all shadow-lg shadow-emerald-600/30 flex items-center gap-2"
+        >
+          <span>🔗</span>
+          <span>Vincular finca existente</span>
+        </button>
       </div>
     </main>
 
@@ -332,13 +335,92 @@
         </form>
       </div>
     </div>
+
+    <div v-if="mostrarModalUnirFinca" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 space-y-5 shadow-2xl border border-slate-200">
+        <div class="flex justify-between items-center">
+          <h3 class="text-lg font-black text-slate-900">Vincular una finca</h3>
+          <button @click="mostrarModalUnirFinca = false" class="text-slate-400 hover:text-slate-600 text-xl font-bold">✕</button>
+        </div>
+        <p class="text-sm text-slate-600">Ingresa el código de seis dígitos que te proporcionó el gerente. Las parcelas aparecerán; sus mediciones requieren asignación.</p>
+        <p v-if="errorUnirFinca" role="alert" class="text-sm text-red-700">{{ errorUnirFinca }}</p>
+        <form class="space-y-4" @submit.prevent="unirFinca">
+          <input
+            v-model="codigoFinca"
+            type="text"
+            inputmode="numeric"
+            pattern="[0-9]{6}"
+            maxlength="6"
+            required
+            aria-label="Código de finca"
+            placeholder="000000"
+            class="w-full px-4 py-3 rounded-xl border border-slate-300 text-center text-lg tracking-[0.4em] focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+          />
+          <div class="flex justify-end gap-3">
+            <button type="button" @click="mostrarModalUnirFinca = false" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100">Cancelar</button>
+            <button type="submit" :disabled="uniendoFinca" class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs disabled:opacity-50">
+              {{ uniendoFinca ? 'Vinculando...' : 'Vincular finca' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div v-if="mostrarModalTrabajadores && fincaTrabajadores" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 space-y-5 shadow-2xl border border-slate-200">
+        <div class="flex justify-between items-center">
+          <div>
+            <h3 class="text-lg font-black text-slate-900">Administrar trabajadores</h3>
+            <p class="text-xs text-slate-500">{{ fincaTrabajadores.name }}</p>
+          </div>
+          <button @click="mostrarModalTrabajadores = false" class="text-slate-400 hover:text-slate-600 text-xl font-bold">✕</button>
+        </div>
+
+        <div class="p-4 rounded-2xl bg-emerald-50 border border-emerald-200">
+          <p class="text-xs font-bold text-emerald-900 mb-2">Código para vincular esta finca</p>
+          <p v-if="cargandoCodigoFinca" class="text-sm text-slate-500">Cargando código...</p>
+          <p v-else class="font-mono text-2xl font-black tracking-[0.3em] text-emerald-800">{{ codigoFincaGerente || 'No disponible' }}</p>
+          <p class="text-[11px] text-emerald-800 mt-2">Al vincularse, el trabajador podrá ver las parcelas. Asigna aquí cuáles pueden abrir y registrar mediciones.</p>
+        </div>
+
+        <p v-if="errorTrabajadores" role="alert" class="text-sm text-red-700">{{ errorTrabajadores }}</p>
+        <p v-if="cargandoTrabajadores" class="text-sm text-slate-500">Cargando trabajadores...</p>
+        <div v-else-if="trabajadores.length === 0" class="p-4 rounded-xl bg-slate-50 text-sm text-slate-600">
+          Todavía no hay trabajadores vinculados. Comparte el código de la finca para que puedan registrarse.
+        </div>
+        <div v-else class="space-y-4">
+          <div v-for="worker in trabajadores" :key="worker.uid" class="p-4 rounded-2xl border border-slate-200 space-y-3">
+            <div>
+              <p class="font-bold text-slate-900">{{ worker.displayName || worker.email }}</p>
+              <p class="text-xs text-slate-500">{{ worker.email }}</p>
+            </div>
+            <fieldset class="space-y-2">
+              <legend class="text-xs font-bold text-slate-700">Parcelas con acceso a mediciones</legend>
+              <label v-for="plot in fincaTrabajadores.plots" :key="plot.id" class="flex items-center gap-2 text-sm text-slate-700">
+                <input v-model="worker.plotIds" type="checkbox" :value="plot.id" class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
+                {{ plot.name }}
+              </label>
+              <p v-if="fincaTrabajadores.plots.length === 0" class="text-xs text-slate-500">Primero crea parcelas en esta finca.</p>
+            </fieldset>
+            <button
+              type="button"
+              :disabled="guardandoAsignacion === worker.uid"
+              @click="guardarAsignacion(worker)"
+              class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs disabled:opacity-50"
+            >
+              {{ guardandoAsignacion === worker.uid ? 'Guardando...' : 'Guardar asignación' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { useAuth } from '~/composables/useAuth'
-import { useRecommendation, type CropOption, type Farm } from '~/composables/useRecommendation'
+import { useRecommendation, type CropOption, type Farm, type FarmWorker } from '~/composables/useRecommendation'
 import { parseCsv, validateCsvMeasurement } from '~/utils/csv'
 
 definePageMeta({
@@ -352,6 +434,10 @@ const {
   createFarm: apiCreateFarm,
   createPlot: apiCreatePlot,
   createMeasurement: apiCreateMeasurement,
+  joinFarm: apiJoinFarm,
+  getFarmWorkerCode,
+  getFarmWorkers,
+  updateWorkerAssignments,
   updateFarm: apiUpdateFarm,
   deleteFarm: apiDeleteFarm
 } = useRecommendation()
@@ -369,6 +455,19 @@ const mensajeCsv = ref('')
 const csvParcelasInput = ref<HTMLInputElement | null>(null)
 const fincaImportacionId = ref('')
 const importandoParcelas = ref(false)
+const mostrarModalUnirFinca = ref(false)
+const codigoFinca = ref('')
+const uniendoFinca = ref(false)
+const errorUnirFinca = ref('')
+const menuFincaAbierto = ref('')
+const mostrarModalTrabajadores = ref(false)
+const fincaTrabajadores = ref<Farm | null>(null)
+const trabajadores = ref<FarmWorker[]>([])
+const codigoFincaGerente = ref('')
+const cargandoCodigoFinca = ref(false)
+const cargandoTrabajadores = ref(false)
+const guardandoAsignacion = ref('')
+const errorTrabajadores = ref('')
 
 const fetchFarms = async () => {
   if (!user.value) return
@@ -488,6 +587,7 @@ const nuevaParcela = ref({
 })
 
 const abrirModalParcela = (farmId: string) => {
+  if (role.value !== 'Gerente') return
   fincaSeleccionadaId.value = farmId
   mostrarModalParcela.value = true
 }
@@ -516,9 +616,67 @@ const guardarParcela = async () => {
 }
 
 const abrirImportadorParcelas = (farmId: string) => {
-  if (importandoParcelas.value) return
+  if (role.value !== 'Gerente' || importandoParcelas.value) return
   fincaImportacionId.value = farmId
   csvParcelasInput.value?.click()
+}
+
+const unirFinca = async () => {
+  if (role.value !== 'Trabajador' || !/^[0-9]{6}$/.test(codigoFinca.value)) return
+  uniendoFinca.value = true
+  errorUnirFinca.value = ''
+  errorParcelas.value = ''
+  try {
+    const result = await apiJoinFarm(codigoFinca.value)
+    mostrarModalUnirFinca.value = false
+    codigoFinca.value = ''
+    mensajeCsv.value = `Finca "${result.farmName}" vinculada. Solicita al gerente acceso a las parcelas que necesitas.`
+    await fetchFarms()
+  } catch (err) {
+    console.error('Error al vincular finca:', err)
+    errorUnirFinca.value = 'No se pudo vincular la finca. Verifica el código e inténtalo de nuevo.'
+  } finally {
+    uniendoFinca.value = false
+  }
+}
+
+const abrirModalTrabajadores = async (farm: Farm) => {
+  if (role.value !== 'Gerente') return
+  fincaTrabajadores.value = farm
+  mostrarModalTrabajadores.value = true
+  trabajadores.value = []
+  errorTrabajadores.value = ''
+  cargandoCodigoFinca.value = true
+  cargandoTrabajadores.value = true
+  try {
+    const [code, workers] = await Promise.all([
+      getFarmWorkerCode(farm.id),
+      getFarmWorkers(farm.id)
+    ])
+    codigoFincaGerente.value = code.code
+    trabajadores.value = workers
+  } catch (err) {
+    console.error('Error al cargar trabajadores de la finca:', err)
+    errorTrabajadores.value = 'No se pudieron cargar el código o los trabajadores.'
+  } finally {
+    cargandoCodigoFinca.value = false
+    cargandoTrabajadores.value = false
+  }
+}
+
+const guardarAsignacion = async (worker: FarmWorker) => {
+  if (!fincaTrabajadores.value || role.value !== 'Gerente') return
+  guardandoAsignacion.value = worker.uid
+  errorTrabajadores.value = ''
+  try {
+    await updateWorkerAssignments(fincaTrabajadores.value.id, worker.uid, worker.plotIds)
+    errorTrabajadores.value = ''
+  } catch (err) {
+    console.error('Error al actualizar parcelas asignadas:', err)
+    errorTrabajadores.value = 'No se pudo guardar la asignación de parcelas.'
+  } finally {
+    guardandoAsignacion.value = ''
+  }
 }
 
 const importarParcelasCsv = async (event: Event) => {
